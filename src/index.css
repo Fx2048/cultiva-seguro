@@ -4,6 +4,19 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 
+/* Leaflet map overrides */
+.leaflet-container {
+  font-family: 'Nunito', sans-serif;
+  z-index: 0;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.leaflet-popup-tip {
+  display: none;
+}
+
 @layer base {
   :root {
     --background: 35 30% 96%;
