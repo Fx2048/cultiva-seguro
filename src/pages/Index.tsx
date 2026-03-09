@@ -49,6 +49,9 @@ const Index = () => {
         {/* Weekly Forecast */}
         <WeeklyForecast />
 
+        {/* Predictive Map */}
+        <PredictiveMap />
+
         {/* Risk Calendar */}
         <RiskCalendar />
 
