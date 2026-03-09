@@ -4,6 +4,7 @@ import WeeklyForecast from "@/components/WeeklyForecast";
 import RiskCalendar from "@/components/RiskCalendar";
 import QuickTips from "@/components/QuickTips";
 import PredictiveMap from "@/components/PredictiveMap";
+import OnboardingTutorial from "@/components/OnboardingTutorial";
 
 const Index = () => {
   const today = new Date();
@@ -15,6 +16,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background pb-8">
+      <OnboardingTutorial />
       {/* Header */}
       <header className="bg-primary text-primary-foreground p-5 rounded-b-3xl shadow-lg">
         <div className="max-w-lg mx-auto">
