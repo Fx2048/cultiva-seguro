@@ -4,6 +4,7 @@ import WeeklyForecast from "@/components/WeeklyForecast";
 import RiskCalendar from "@/components/RiskCalendar";
 import QuickTips from "@/components/QuickTips";
 import PredictiveMap from "@/components/PredictiveMap";
+import OnboardingTutorial from "@/components/OnboardingTutorial";
 
 const Index = () => {
   const today = new Date();
