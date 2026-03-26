@@ -4,6 +4,7 @@ import WeeklyForecast from "@/components/WeeklyForecast";
 import RiskCalendar from "@/components/RiskCalendar";
 import QuickTips from "@/components/QuickTips";
 import PredictiveMap from "@/components/PredictiveMap";
+import NDVIMap from "@/components/NDVIMap";
 import OnboardingTutorial from "@/components/OnboardingTutorial";
 import { useWeather } from "@/hooks/useWeather";
 
@@ -73,6 +74,9 @@ const Index = () => {
 
         {/* Predictive Map */}
         <PredictiveMap />
+
+        {/* NDVI Satellite Map */}
+        <NDVIMap />
 
         {/* Risk Calendar */}
         <RiskCalendar />
