@@ -17,7 +17,9 @@ export interface WeatherData {
 }
 
 // WMO weather code → icon
-function wmoToIcon(code: number): DayForecast["icon"] {
+function wmoToIcon(code: number, tempMin: number): DayForecast["icon"] {
+  // If frost risk, show frost icon regardless of weather code
+  if (tempMin <= 2) return "frost";
   if (code === 0 || code === 1) return "sun";
   if (code === 2 || code === 3) return "cloud";
   if (code >= 51 && code <= 67) return "rain";
@@ -65,29 +67,42 @@ export function useWeather() {
           const tempMax = Math.round(temperature_2m_max[i]);
           return {
             day: DAYS_ES[date.getDay()],
-            icon: wmoToIcon(weathercode[i]),
+            icon: wmoToIcon(weathercode[i], tempMin),
             tempMin,
             tempMax,
             risk: getRisk(tempMin),
           };
         });
 
-        // Determine alert from next 3 days
-        const nextDays = forecast.slice(0, 3);
-        const worstRisk = nextDays.some(d => d.risk === "danger")
+        // Determine alert from next 48h (first 2 days)
+        const next48h = forecast.slice(0, 2);
+        const worstRisk = next48h.some((d) => d.risk === "danger")
           ? "danger"
-          : nextDays.some(d => d.risk === "warning")
+          : next48h.some((d) => d.risk === "warning")
           ? "warning"
           : "safe";
 
-        const minTemp = Math.min(...nextDays.map(d => d.tempMin));
-        let alertMessage = "Sin riesgo en los próximos días. ¡Sus cultivos están bien!";
-        if (worstRisk === "danger")
-          alertMessage = `Se esperan ${minTemp}°C. ¡Riesgo de helada! Cubra sus cultivos esta noche.`;
-        else if (worstRisk === "warning")
-          alertMessage = `Se esperan ${minTemp}°C. Posible helada en los próximos días.`;
+        const minTemp = Math.min(...forecast.map((d) => d.tempMin));
+        const minTemp48h = Math.min(...next48h.map((d) => d.tempMin));
 
-        // Try to get city name via reverse geocoding (Open-Meteo nominatim)
+        // Check descending trend
+        const descending =
+          forecast.length >= 3 &&
+          forecast[2].tempMin < forecast[1].tempMin &&
+          forecast[1].tempMin < forecast[0].tempMin;
+
+        let alertMessage: string;
+        if (worstRisk === "danger") {
+          alertMessage = `🔴 ¡HELADA INMINENTE! Se esperan ${minTemp48h}°C en las próximas 48 horas. ¡Cubra sus cultivos AHORA!`;
+        } else if (worstRisk === "warning") {
+          alertMessage = `🟡 Se esperan ${minTemp48h}°C. Posible helada pronto. Prepare protección.`;
+        } else if (descending && minTemp <= 5) {
+          alertMessage = `📉 Temperaturas bajando. Mínima esperada: ${minTemp}°C esta semana. Esté atento.`;
+        } else {
+          alertMessage = "✅ Sin riesgo de helada en los próximos días. ¡Sus cultivos están bien!";
+        }
+
+        // Reverse geocode for location name
         let locationName = "Mi Zona";
         try {
           const geoRes = await fetch(
@@ -104,12 +119,13 @@ export function useWeather() {
               "Mi Zona";
           }
         } catch {
-          // silently ignore geo name error
+          // silently ignore
         }
 
         setWeather({ currentTemp, locationName, forecast, alertLevel: worstRisk, alertMessage });
-      } catch (err) {
-        setError("No se pudo obtener el clima");
+      } catch {
+        setError("Pronóstico no disponible");
+        setWeather(null);
       } finally {
         setLoading(false);
       }
@@ -124,7 +140,7 @@ export function useWeather() {
     navigator.geolocation.getCurrentPosition(
       (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
       () => {
-        // Fallback: Cusco, Peru
+        // Fallback: Cusco, Peru (zona de heladas)
         fetchWeather(-13.5319, -71.9675);
       },
       { timeout: 8000 }
