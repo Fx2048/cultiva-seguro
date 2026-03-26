@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { offlineCache } from "@/lib/offlineCache";
 
 export interface DayForecast {
   day: string;
