@@ -7,6 +7,7 @@ import PredictiveMap from "@/components/PredictiveMap";
 import NDVIMap from "@/components/NDVIMap";
 import OnboardingTutorial from "@/components/OnboardingTutorial";
 import ConnectivityBadge from "@/components/ConnectivityBadge";
+import SmsAlertConfig from "@/components/SmsAlertConfig";
 import { useWeather } from "@/hooks/useWeather";
 import { useConnectivity } from "@/hooks/useConnectivity";
 
@@ -96,6 +97,13 @@ const Index = () => {
 
         {/* Quick Tips */}
         <QuickTips />
+
+        {/* SMS Alert Config */}
+        <SmsAlertConfig
+          temperatura={weather?.currentTemp ?? null}
+          locationName={weather?.locationName ?? "tu zona"}
+          alertLevel={weather?.alertLevel ?? "safe"}
+        />
       </main>
     </div>
   );

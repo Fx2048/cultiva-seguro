@@ -53,6 +53,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_logs: {
+        Row: {
+          alert_type: string
+          created_at: string
+          error_message: string | null
+          id: string
+          location_name: string | null
+          message: string
+          phone_number: string
+          status: string
+          temperatura: number | null
+          twilio_sid: string | null
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          location_name?: string | null
+          message: string
+          phone_number: string
+          status?: string
+          temperatura?: number | null
+          twilio_sid?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          location_name?: string | null
+          message?: string
+          phone_number?: string
+          status?: string
+          temperatura?: number | null
+          twilio_sid?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
