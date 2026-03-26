@@ -5,11 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Get access token from Google service account
 async function getAccessToken(credentials: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({
+  
+  // Base64url encode
+  const b64url = (str: string) => btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  
+  const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = b64url(JSON.stringify({
     iss: credentials.client_email,
     scope: "https://www.googleapis.com/auth/earthengine.readonly",
     aud: credentials.token_uri,
@@ -19,11 +22,10 @@ async function getAccessToken(credentials: any): Promise<string> {
 
   const unsignedToken = `${header}.${payload}`;
 
-  // Import the private key for signing
   const pemContent = credentials.private_key
-    .replace("-----BEGIN PRIVATE KEY-----", "")
-    .replace("-----END PRIVATE KEY-----", "")
-    .replace(/\n/g, "");
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s/g, "");
 
   const binaryKey = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0));
 
@@ -41,14 +43,9 @@ async function getAccessToken(credentials: any): Promise<string> {
     new TextEncoder().encode(unsignedToken)
   );
 
-  const sig = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
+  const sig = b64url(String.fromCharCode(...new Uint8Array(signature)));
   const jwt = `${header}.${payload}.${sig}`;
 
-  // Exchange JWT for access token
   const tokenRes = await fetch(credentials.token_uri, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -57,41 +54,30 @@ async function getAccessToken(credentials: any): Promise<string> {
 
   if (!tokenRes.ok) {
     const errText = await tokenRes.text();
-    throw new Error(`Token exchange failed: ${errText}`);
+    throw new Error(`Token exchange failed [${tokenRes.status}]: ${errText}`);
   }
 
   const tokenData = await tokenRes.json();
   return tokenData.access_token;
 }
 
-// Fetch NDVI from Earth Engine REST API using Sentinel-2 or MODIS
-async function fetchNDVI(accessToken: string, lat: number, lon: number): Promise<number | null> {
-  // Use Earth Engine REST API to compute NDVI
-  // We'll use the computePixels endpoint with a MODIS NDVI product
-  const projectId = "proud-lead-491322-q2";
-
-  // Use MODIS NDVI 16-day composite (MOD13A2)
-  const expression = {
-    functionInvocationValue: {
-      functionName: "Image.pixelLonLat",
-      arguments: {}
-    }
-  };
-
-  // Simpler approach: use the Earth Engine REST API v1 to get NDVI value
-  // Using MODIS vegetation index product directly
+async function fetchNDVI(
+  accessToken: string, 
+  lat: number, 
+  lon: number, 
+  projectId: string
+): Promise<number | null> {
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 30); // Last 30 days
+  startDate.setDate(startDate.getDate() - 30);
 
   const startStr = startDate.toISOString().split("T")[0];
   const endStr = endDate.toISOString().split("T")[0];
 
-  // Use Earth Engine compute endpoint
-  const computeUrl = `https://earthengine.googleapis.com/v1/projects/${projectId}:computePixels`;
+  // Use v1beta compute value endpoint
+  const url = `https://earthengine.googleapis.com/v1beta/projects/${projectId}/value:compute`;
 
-  // Build an expression to get NDVI from MODIS
-  const requestBody = {
+  const body = {
     expression: {
       result: "0",
       values: {
@@ -154,102 +140,6 @@ async function fetchNDVI(accessToken: string, lat: number, lon: number): Promise
   };
 
   try {
-    const res = await fetch(
-      `https://earthengine.googleapis.com/v1/projects/${projectId}:computeFeatures`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
-
-    if (!res.ok) {
-      // Try alternative: simple image value endpoint
-      console.log("computeFeatures failed, trying alternative approach...");
-      return await fetchNDVIAlternative(accessToken, lat, lon, projectId, startStr, endStr);
-    }
-
-    const data = await res.json();
-    console.log("EE Response:", JSON.stringify(data));
-
-    // Extract NDVI value - MODIS NDVI is scaled by 10000
-    if (data?.result?.NDVI !== undefined) {
-      return data.result.NDVI / 10000; // Scale to 0-1 range
-    }
-    return null;
-  } catch (err) {
-    console.error("EE fetch error:", err);
-    return null;
-  }
-}
-
-async function fetchNDVIAlternative(
-  accessToken: string, lat: number, lon: number,
-  projectId: string, startStr: string, endStr: string
-): Promise<number | null> {
-  // Use the value endpoint for simpler queries
-  const url = `https://earthengine.googleapis.com/v1/projects/${projectId}:value`;
-
-  const body = {
-    expression: {
-      result: "0",
-      values: {
-        "0": {
-          functionInvocationValue: {
-            functionName: "Image.sample",
-            arguments: {
-              image: {
-                functionInvocationValue: {
-                  functionName: "Image.select",
-                  arguments: {
-                    input: {
-                      functionInvocationValue: {
-                        functionName: "ImageCollection.mean",
-                        arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "ImageCollection.filterDate",
-                              arguments: {
-                                collection: {
-                                  functionInvocationValue: {
-                                    functionName: "ImageCollection.load",
-                                    arguments: {
-                                      id: { constantValue: "MODIS/061/MOD13A2" }
-                                    }
-                                  }
-                                },
-                                start: { constantValue: startStr },
-                                end: { constantValue: endStr }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    bandSelectors: { constantValue: ["NDVI"] }
-                  }
-                }
-              },
-              region: {
-                functionInvocationValue: {
-                  functionName: "Geometry.Point",
-                  arguments: {
-                    coordinates: { constantValue: [lon, lat] }
-                  }
-                }
-              },
-              scale: { constantValue: 1000 }
-            }
-          }
-        }
-      }
-    }
-  };
-
-  try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -259,20 +149,33 @@ async function fetchNDVIAlternative(
       body: JSON.stringify(body),
     });
 
-    const data = await res.json();
-    console.log("EE Alternative Response:", JSON.stringify(data));
+    const text = await res.text();
+    console.log(`EE response for (${lat},${lon}) [${res.status}]:`, text.substring(0, 500));
 
-    // Try to extract NDVI
-    if (data?.features?.[0]?.properties?.NDVI !== undefined) {
-      return data.features[0].properties.NDVI / 10000;
-    }
-    if (data?.result?.properties?.NDVI !== undefined) {
-      return data.result.properties.NDVI / 10000;
+    if (!res.ok) {
+      console.error(`EE API error [${res.status}]:`, text.substring(0, 300));
+      return null;
     }
 
+    const data = JSON.parse(text);
+    
+    // MODIS NDVI is scaled by 10000
+    if (data?.result?.NDVI !== undefined) {
+      return data.result.NDVI / 10000;
+    }
+    // Try nested paths
+    if (typeof data?.result === "object") {
+      for (const key of Object.keys(data.result)) {
+        if (key.toLowerCase().includes("ndvi")) {
+          return data.result[key] / 10000;
+        }
+      }
+    }
+    
+    console.log("Could not extract NDVI from response:", JSON.stringify(data).substring(0, 300));
     return null;
   } catch (err) {
-    console.error("EE alternative error:", err);
+    console.error(`EE fetch error for (${lat},${lon}):`, err);
     return null;
   }
 }
@@ -289,6 +192,7 @@ serve(async (req) => {
     }
 
     const credentials = JSON.parse(credentialsStr);
+    const projectId = credentials.project_id;
     const { points } = await req.json();
 
     if (!points || !Array.isArray(points) || points.length === 0) {
@@ -296,12 +200,14 @@ serve(async (req) => {
     }
 
     // Get access token
+    console.log("Getting access token for:", credentials.client_email);
     const accessToken = await getAccessToken(credentials);
+    console.log("Access token obtained successfully");
 
-    // Fetch NDVI for each point (limit to 15 concurrent)
+    // Fetch NDVI for each point (limit to 15)
     const results = await Promise.all(
       points.slice(0, 15).map(async (p: { lat: number; lon: number; name: string }) => {
-        const ndvi = await fetchNDVI(accessToken, p.lat, p.lon);
+        const ndvi = await fetchNDVI(accessToken, p.lat, p.lon, projectId);
         return {
           lat: p.lat,
           lon: p.lon,
