@@ -35,11 +35,14 @@ const Index = () => {
               </h1>
               <p className="text-sm font-semibold opacity-90 capitalize">{dateStr}</p>
             </div>
-            <div className="flex items-center gap-1 bg-primary-foreground/20 rounded-full px-3 py-1.5">
-              <MapPin className="w-4 h-4" />
-              <span className="text-sm font-bold">
-                {loading ? "..." : (weather?.locationName ?? "Mi Zona")}
-              </span>
+            <div className="flex flex-col items-end gap-1.5">
+              <ConnectivityBadge isOnline={isOnline} justReconnected={justReconnected} />
+              <div className="flex items-center gap-1 bg-primary-foreground/20 rounded-full px-3 py-1.5">
+                <MapPin className="w-4 h-4" />
+                <span className="text-sm font-bold">
+                  {loading ? "..." : (weather?.locationName ?? "Mi Zona")}
+                </span>
+              </div>
             </div>
           </div>
 
