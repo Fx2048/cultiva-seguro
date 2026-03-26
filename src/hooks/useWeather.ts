@@ -123,7 +123,7 @@ export function useWeather() {
           // silently ignore
         }
 
-        const weatherData = { currentTemp, locationName, forecast, alertLevel: worstRisk, alertMessage };
+        const weatherData: WeatherData = { currentTemp, locationName, forecast, alertLevel: worstRisk, alertMessage };
         offlineCache.setWeather(weatherData);
         setWeather(weatherData);
       } catch {
