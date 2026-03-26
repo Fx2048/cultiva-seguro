@@ -63,11 +63,18 @@ const Index = () => {
 
       <main className="max-w-lg mx-auto px-4 mt-6 space-y-6">
         {/* Main Alert */}
-        <AlertBanner
-          level={weather?.alertLevel ?? "warning"}
-          type="helada"
-          message={weather?.alertMessage ?? "Cargando datos del clima de tu zona..."}
-        />
+        {error && !weather ? (
+          <div className="rounded-2xl p-4 bg-muted border-2 border-border text-center">
+            <p className="text-base font-bold text-muted-foreground">⚠️ {error}</p>
+            <p className="text-sm text-muted-foreground mt-1">Verifique su conexión a internet</p>
+          </div>
+        ) : (
+          <AlertBanner
+            level={weather?.alertLevel ?? "warning"}
+            type="helada"
+            message={weather?.alertMessage ?? "Cargando datos del clima de tu zona..."}
+          />
+        )}
 
         {/* Weekly Forecast */}
         <WeeklyForecast forecast={weather?.forecast} />
