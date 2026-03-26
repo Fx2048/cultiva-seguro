@@ -112,9 +112,11 @@ async function fetchNDVI(
                 }
               },
               geometry: {
-                constantValue: {
-                  type: "Point",
-                  coordinates: [lon, lat]
+                functionInvocationValue: {
+                  functionName: "GeometryConstructors.Point",
+                  arguments: {
+                    coordinates: { constantValue: [lon, lat] }
+                  }
                 }
               },
               scale: { constantValue: 1000 }
