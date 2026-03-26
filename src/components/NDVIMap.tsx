@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { MapContainer, TileLayer, Circle, Popup, useMapEvents } from "react-leaflet";
 import { Loader2, RefreshCw, Satellite, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { offlineCache } from "@/lib/offlineCache";
 import "leaflet/dist/leaflet.css";
 
 interface NDVIPoint {
