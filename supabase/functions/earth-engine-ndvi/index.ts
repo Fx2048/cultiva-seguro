@@ -93,7 +93,7 @@ async function fetchNDVI(
                   arguments: {
                     input: {
                       functionInvocationValue: {
-                        functionName: "ImageCollection.mean",
+                        functionName: "ImageCollection.reduce",
                         arguments: {
                           collection: {
                             functionInvocationValue: {
@@ -111,11 +111,17 @@ async function fetchNDVI(
                                 end: { constantValue: endStr }
                               }
                             }
+                          },
+                          reducer: {
+                            functionInvocationValue: {
+                              functionName: "Reducer.mean",
+                              arguments: {}
+                            }
                           }
                         }
                       }
                     },
-                    bandSelectors: { constantValue: ["NDVI"] }
+                    bandSelectors: { constantValue: ["NDVI_mean"] }
                   }
                 }
               },
