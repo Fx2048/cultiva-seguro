@@ -75,6 +75,9 @@ const Index = () => {
         {/* Predictive Map */}
         <PredictiveMap />
 
+        {/* NDVI Satellite Map */}
+        <NDVIMap />
+
         {/* Risk Calendar */}
         <RiskCalendar />
 
