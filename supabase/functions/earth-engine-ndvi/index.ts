@@ -7,10 +7,8 @@ const corsHeaders = {
 
 async function getAccessToken(credentials: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  
-  // Base64url encode
   const b64url = (str: string) => btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  
+
   const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const payload = b64url(JSON.stringify({
     iss: credentials.client_email,
@@ -21,25 +19,20 @@ async function getAccessToken(credentials: any): Promise<string> {
   }));
 
   const unsignedToken = `${header}.${payload}`;
-
   const pemContent = credentials.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
     .replace(/\s/g, "");
 
   const binaryKey = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0));
-
   const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryKey,
+    "pkcs8", binaryKey,
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
+    false, ["sign"]
   );
 
   const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
+    "RSASSA-PKCS1-v1_5", cryptoKey,
     new TextEncoder().encode(unsignedToken)
   );
 
@@ -62,23 +55,18 @@ async function getAccessToken(credentials: any): Promise<string> {
 }
 
 async function fetchNDVI(
-  accessToken: string, 
-  lat: number, 
-  lon: number, 
-  projectId: string
+  accessToken: string, lat: number, lon: number, projectId: string
 ): Promise<number | null> {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - 30);
-
   const startStr = startDate.toISOString().split("T")[0];
   const endStr = endDate.toISOString().split("T")[0];
 
-  // Use v1beta compute value endpoint
-  // Use earthengine-legacy for public dataset access (MODIS)
-  const cloudProject = "earthengine-legacy";
-  const url = `https://earthengine.googleapis.com/v1beta/projects/${cloudProject}/value:compute`;
+  // Use the project's own ID for the API call
+  const url = `https://earthengine.googleapis.com/v1/projects/${projectId}/value:compute`;
 
+  // Build expression using correct EE REST API algorithm names
   const body = {
     expression: {
       result: "0",
@@ -93,11 +81,11 @@ async function fetchNDVI(
                   arguments: {
                     input: {
                       functionInvocationValue: {
-                        functionName: "ImageCollection.reduce",
+                        functionName: "Collection.first",
                         arguments: {
                           collection: {
                             functionInvocationValue: {
-                              functionName: "ImageCollection.filterDate",
+                              functionName: "Collection.filter",
                               arguments: {
                                 collection: {
                                   functionInvocationValue: {
@@ -107,21 +95,22 @@ async function fetchNDVI(
                                     }
                                   }
                                 },
-                                start: { constantValue: startStr },
-                                end: { constantValue: endStr }
+                                filter: {
+                                  functionInvocationValue: {
+                                    functionName: "Filter.dateRange",
+                                    arguments: {
+                                      start: { constantValue: startStr },
+                                      end: { constantValue: endStr }
+                                    }
+                                  }
+                                }
                               }
-                            }
-                          },
-                          reducer: {
-                            functionInvocationValue: {
-                              functionName: "Reducer.mean",
-                              arguments: {}
                             }
                           }
                         }
                       }
                     },
-                    bandSelectors: { constantValue: ["NDVI_mean"] }
+                    bandSelectors: { constantValue: ["NDVI"] }
                   }
                 }
               },
@@ -166,12 +155,10 @@ async function fetchNDVI(
     }
 
     const data = JSON.parse(text);
-    
     // MODIS NDVI is scaled by 10000
     if (data?.result?.NDVI !== undefined) {
       return data.result.NDVI / 10000;
     }
-    // Try nested paths
     if (typeof data?.result === "object") {
       for (const key of Object.keys(data.result)) {
         if (key.toLowerCase().includes("ndvi")) {
@@ -179,7 +166,6 @@ async function fetchNDVI(
         }
       }
     }
-    
     console.log("Could not extract NDVI from response:", JSON.stringify(data).substring(0, 300));
     return null;
   } catch (err) {
@@ -207,20 +193,15 @@ serve(async (req) => {
       throw new Error("Provide an array of {lat, lon, name} points");
     }
 
-    // Get access token
     console.log("Getting access token for:", credentials.client_email);
     const accessToken = await getAccessToken(credentials);
     console.log("Access token obtained successfully");
 
-    // Fetch NDVI for each point (limit to 15)
     const results = await Promise.all(
       points.slice(0, 15).map(async (p: { lat: number; lon: number; name: string }) => {
         const ndvi = await fetchNDVI(accessToken, p.lat, p.lon, projectId);
         return {
-          lat: p.lat,
-          lon: p.lon,
-          name: p.name,
-          ndvi,
+          lat: p.lat, lon: p.lon, name: p.name, ndvi,
           source: ndvi !== null ? "satellite" : "unavailable",
         };
       })
