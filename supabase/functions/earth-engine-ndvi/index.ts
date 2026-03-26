@@ -54,19 +54,33 @@ async function getAccessToken(credentials: any): Promise<string> {
   return tokenData.access_token;
 }
 
+// Get the most recent MODIS 16-day composite image ID
+function getRecentModisImageId(): string {
+  const now = new Date();
+  // MODIS MOD13A2 composites start every 16 days from Jan 1
+  // Go back 32 days to ensure we get a completed composite
+  const d = new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000);
+  const year = d.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const dayOfYear = Math.floor((d.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  // Round down to nearest 16-day period
+  const compositeDoy = Math.floor((dayOfYear - 1) / 16) * 16 + 1;
+  const compositeDate = new Date(year, 0, compositeDoy);
+  const yStr = compositeDate.getFullYear();
+  const mStr = String(compositeDate.getMonth() + 1).padStart(2, '0');
+  const dStr = String(compositeDate.getDate()).padStart(2, '0');
+  return `MODIS/061/MOD13A2/${yStr}_${mStr}_${dStr}`;
+}
+
 async function fetchNDVI(
   accessToken: string, lat: number, lon: number, projectId: string
 ): Promise<number | null> {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 30);
-  const startStr = startDate.toISOString().split("T")[0];
-  const endStr = endDate.toISOString().split("T")[0];
+  const imageId = getRecentModisImageId();
+  console.log(`Using MODIS image: ${imageId}`);
 
-  // Use the project's own ID for the API call
   const url = `https://earthengine.googleapis.com/v1/projects/${projectId}/value:compute`;
 
-  // Build expression using correct EE REST API algorithm names
+  // Simple expression: load single image, select NDVI band, sample at point
   const body = {
     expression: {
       result: "0",
@@ -81,32 +95,9 @@ async function fetchNDVI(
                   arguments: {
                     input: {
                       functionInvocationValue: {
-                        functionName: "Collection.first",
+                        functionName: "Image.load",
                         arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "Collection.filter",
-                              arguments: {
-                                collection: {
-                                  functionInvocationValue: {
-                                    functionName: "ImageCollection.load",
-                                    arguments: {
-                                      id: { constantValue: "MODIS/061/MOD13A2" }
-                                    }
-                                  }
-                                },
-                                filter: {
-                                  functionInvocationValue: {
-                                    functionName: "Filter.dateRange",
-                                    arguments: {
-                                      start: { constantValue: startStr },
-                                      end: { constantValue: endStr }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
+                          id: { constantValue: imageId }
                         }
                       }
                     },
@@ -155,7 +146,6 @@ async function fetchNDVI(
     }
 
     const data = JSON.parse(text);
-    // MODIS NDVI is scaled by 10000
     if (data?.result?.NDVI !== undefined) {
       return data.result.NDVI / 10000;
     }
@@ -166,7 +156,7 @@ async function fetchNDVI(
         }
       }
     }
-    console.log("Could not extract NDVI from response:", JSON.stringify(data).substring(0, 300));
+    console.log("Could not extract NDVI:", JSON.stringify(data).substring(0, 300));
     return null;
   } catch (err) {
     console.error(`EE fetch error for (${lat},${lon}):`, err);
