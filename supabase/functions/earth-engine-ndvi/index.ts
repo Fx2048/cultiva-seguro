@@ -75,7 +75,9 @@ async function fetchNDVI(
   const endStr = endDate.toISOString().split("T")[0];
 
   // Use v1beta compute value endpoint
-  const url = `https://earthengine.googleapis.com/v1beta/projects/${projectId}/value:compute`;
+  // Use earthengine-legacy for public dataset access (MODIS)
+  const cloudProject = "earthengine-legacy";
+  const url = `https://earthengine.googleapis.com/v1beta/projects/${cloudProject}/value:compute`;
 
   const body = {
     expression: {
