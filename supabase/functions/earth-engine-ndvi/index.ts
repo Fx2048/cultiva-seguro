@@ -75,7 +75,9 @@ async function fetchNDVI(
   const endStr = endDate.toISOString().split("T")[0];
 
   // Use v1beta compute value endpoint
-  const url = `https://earthengine.googleapis.com/v1beta/projects/${projectId}/value:compute`;
+  // Use earthengine-legacy for public dataset access (MODIS)
+  const cloudProject = "earthengine-legacy";
+  const url = `https://earthengine.googleapis.com/v1beta/projects/${cloudProject}/value:compute`;
 
   const body = {
     expression: {
@@ -91,7 +93,7 @@ async function fetchNDVI(
                   arguments: {
                     input: {
                       functionInvocationValue: {
-                        functionName: "ImageCollection.mean",
+                        functionName: "ImageCollection.reduce",
                         arguments: {
                           collection: {
                             functionInvocationValue: {
@@ -109,11 +111,17 @@ async function fetchNDVI(
                                 end: { constantValue: endStr }
                               }
                             }
+                          },
+                          reducer: {
+                            functionInvocationValue: {
+                              functionName: "Reducer.mean",
+                              arguments: {}
+                            }
                           }
                         }
                       }
                     },
-                    bandSelectors: { constantValue: ["NDVI"] }
+                    bandSelectors: { constantValue: ["NDVI_mean"] }
                   }
                 }
               },
