@@ -97,6 +97,13 @@ const Index = () => {
 
         {/* Quick Tips */}
         <QuickTips />
+
+        {/* SMS Alert Config */}
+        <SmsAlertConfig
+          temperatura={weather?.currentTemp ?? null}
+          locationName={weather?.locationName ?? "tu zona"}
+          alertLevel={weather?.alertLevel ?? "safe"}
+        />
       </main>
     </div>
   );
