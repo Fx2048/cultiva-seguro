@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { offlineCache } from "@/lib/offlineCache";
 
 export interface DayForecast {
   day: string;
@@ -122,10 +123,19 @@ export function useWeather() {
           // silently ignore
         }
 
-        setWeather({ currentTemp, locationName, forecast, alertLevel: worstRisk, alertMessage });
+        const weatherData: WeatherData = { currentTemp, locationName, forecast, alertLevel: worstRisk, alertMessage };
+        offlineCache.setWeather(weatherData);
+        setWeather(weatherData);
       } catch {
-        setError("Pronóstico no disponible");
-        setWeather(null);
+        // Try cached data when offline
+        const cached = offlineCache.getWeather() as WeatherData | null;
+        if (cached) {
+          setWeather(cached);
+          setError("📡 Sin conexión · Datos guardados");
+        } else {
+          setError("Pronóstico no disponible");
+          setWeather(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -139,10 +149,7 @@ export function useWeather() {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-      () => {
-        // Fallback: Cusco, Peru (zona de heladas)
-        fetchWeather(-13.5319, -71.9675);
-      },
+      () => fetchWeather(-13.5319, -71.9675),
       { timeout: 8000 }
     );
   }, []);

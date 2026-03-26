@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { MapContainer, TileLayer, Circle, Popup, useMapEvents } from "react-leaflet";
 import { Loader2, RefreshCw, Satellite, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { offlineCache } from "@/lib/offlineCache";
 import "leaflet/dist/leaflet.css";
 
 interface NDVIPoint {
@@ -90,6 +91,7 @@ const NDVIMap = () => {
         if (hasReal) {
           setPoints(eePoints);
           setDataSource("satellite");
+          offlineCache.setNDVI(eePoints);
         } else {
           throw new Error("No se obtuvieron datos del satélite");
         }
@@ -97,9 +99,17 @@ const NDVIMap = () => {
         throw new Error(data?.error || "Error desconocido");
       }
     } catch (err: any) {
-      console.warn("Earth Engine no disponible, usando datos simulados:", err.message);
-      setError("Usando datos simulados (satélite no disponible)");
-      loadSimulated();
+      console.warn("Earth Engine no disponible, usando datos en caché/simulados:", err.message);
+      // Try cached NDVI first
+      const cached = offlineCache.getNDVI() as NDVIPoint[] | null;
+      if (cached && cached.length > 0) {
+        setPoints(cached);
+        setDataSource("satellite");
+        setError("📡 Sin conexión · Datos NDVI guardados");
+      } else {
+        setError("Usando datos simulados (satélite no disponible)");
+        loadSimulated();
+      }
     } finally {
       setLoading(false);
     }
