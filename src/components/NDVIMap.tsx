@@ -1,42 +1,43 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MapContainer, TileLayer, Circle, Popup, useMapEvents } from "react-leaflet";
+import { Loader2, RefreshCw, Satellite, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import "leaflet/dist/leaflet.css";
 
 interface NDVIPoint {
   lat: number;
   lon: number;
-  ndvi: number;
+  ndvi: number | null;
   label: string;
+  source: "satellite" | "simulated" | "unavailable";
 }
 
-function getNDVIColor(ndvi: number): string {
-  if (ndvi < 0.2) return "#ef4444"; // rojo - estrés severo
-  if (ndvi < 0.4) return "#f97316"; // naranja - estrés moderado
-  if (ndvi < 0.6) return "#eab308"; // amarillo - moderado
-  return "#22c55e"; // verde - saludable
+function getNDVIColor(ndvi: number | null): string {
+  if (ndvi === null) return "#9ca3af";
+  if (ndvi < 0.2) return "#ef4444";
+  if (ndvi < 0.4) return "#f97316";
+  if (ndvi < 0.6) return "#eab308";
+  return "#22c55e";
 }
 
-function getNDVILabel(ndvi: number): string {
+function getNDVILabel(ndvi: number | null): string {
+  if (ndvi === null) return "⚪ Sin datos";
   if (ndvi < 0.2) return "🔴 Estrés severo";
   if (ndvi < 0.4) return "🟠 Estrés moderado";
   if (ndvi < 0.6) return "🟡 Moderado";
   return "🟢 Saludable";
 }
 
-// Simulated NDVI based on region (will be replaced with Earth Engine data)
+// Fallback simulation when Earth Engine is unavailable
 function simulateNDVI(lat: number, lon: number): number {
-  // Simulate based on altitude approximation from lat
-  // Higher altitude (more south in Peru) = lower NDVI
   const seed = Math.sin(lat * 12.9898 + lon * 78.233) * 43758.5453;
-  const base = (seed - Math.floor(seed));
-  // Adjust: highland areas have lower NDVI
-  if (lat < -14) return Math.max(0.05, base * 0.4); // Puno/Arequipa
-  if (lat < -12) return 0.2 + base * 0.4; // Cusco/Ayacucho
-  return 0.3 + base * 0.5; // Selva/Costa
+  const base = seed - Math.floor(seed);
+  if (lat < -14) return Math.max(0.05, base * 0.4);
+  if (lat < -12) return 0.2 + base * 0.4;
+  return 0.3 + base * 0.5;
 }
 
-// Predefined monitoring points for Peru
-const monitoringPoints: { lat: number; lon: number; name: string }[] = [
+const monitoringPoints = [
   { lat: -15.84, lon: -70.02, name: "Puno" },
   { lat: -13.53, lon: -71.97, name: "Cusco" },
   { lat: -16.41, lon: -71.54, name: "Arequipa" },
@@ -61,41 +62,156 @@ function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) =
 const NDVIMap = () => {
   const [points, setPoints] = useState<NDVIPoint[]>([]);
   const [userPoints, setUserPoints] = useState<NDVIPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<"satellite" | "simulated">("simulated");
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Load predefined monitoring points with simulated NDVI
-    const initialPoints = monitoringPoints.map((p) => ({
+  const fetchFromEarthEngine = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("earth-engine-ndvi", {
+        body: { points: monitoringPoints },
+      });
+
+      if (fnError) throw fnError;
+
+      if (data?.success && data.data) {
+        const eePoints: NDVIPoint[] = data.data.map((p: any) => ({
+          lat: p.lat,
+          lon: p.lon,
+          ndvi: p.ndvi,
+          label: p.name,
+          source: p.source === "satellite" ? "satellite" : "unavailable",
+        }));
+
+        // If all points came back null, fall back to simulation
+        const hasReal = eePoints.some((p) => p.ndvi !== null);
+        if (hasReal) {
+          setPoints(eePoints);
+          setDataSource("satellite");
+        } else {
+          throw new Error("No se obtuvieron datos del satélite");
+        }
+      } else {
+        throw new Error(data?.error || "Error desconocido");
+      }
+    } catch (err: any) {
+      console.warn("Earth Engine no disponible, usando datos simulados:", err.message);
+      setError("Usando datos simulados (satélite no disponible)");
+      loadSimulated();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadSimulated = () => {
+    const simPoints = monitoringPoints.map((p) => ({
       lat: p.lat,
       lon: p.lon,
       ndvi: simulateNDVI(p.lat, p.lon),
       label: p.name,
+      source: "simulated" as const,
     }));
-    setPoints(initialPoints);
-  }, []);
+    setPoints(simPoints);
+    setDataSource("simulated");
+  };
 
-  const handleMapClick = (lat: number, lon: number) => {
-    const ndvi = simulateNDVI(lat, lon);
-    const newPoint: NDVIPoint = {
-      lat,
-      lon,
-      ndvi,
-      label: `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+  useEffect(() => {
+    fetchFromEarthEngine();
+  }, [fetchFromEarthEngine]);
+
+  const handleMapClick = async (lat: number, lon: number) => {
+    const label = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+
+    // Add temporary loading point
+    const tempPoint: NDVIPoint = { lat, lon, ndvi: null, label, source: "unavailable" };
+    setUserPoints((prev) => [...prev.slice(-9), tempPoint]);
+
+    // Try to get real NDVI for clicked point
+    try {
+      const { data } = await supabase.functions.invoke("earth-engine-ndvi", {
+        body: { points: [{ lat, lon, name: label }] },
+      });
+
+      if (data?.success && data.data?.[0]?.ndvi !== null) {
+        const realPoint: NDVIPoint = {
+          lat, lon,
+          ndvi: data.data[0].ndvi,
+          label,
+          source: "satellite",
+        };
+        setUserPoints((prev) =>
+          prev.map((p) => (p.lat === lat && p.lon === lon ? realPoint : p))
+        );
+        return;
+      }
+    } catch {
+      // Fall through to simulation
+    }
+
+    // Fallback to simulated
+    const simPoint: NDVIPoint = {
+      lat, lon,
+      ndvi: simulateNDVI(lat, lon),
+      label,
+      source: "simulated",
     };
-    setUserPoints((prev) => [...prev.slice(-9), newPoint]); // max 10 user points
+    setUserPoints((prev) =>
+      prev.map((p) => (p.lat === lat && p.lon === lon ? simPoint : p))
+    );
   };
 
   const allPoints = [...points, ...userPoints];
 
   return (
     <div>
-      <h2 className="text-xl font-extrabold text-foreground mb-3">
-        🛰️ Mapa de Vegetación (NDVI)
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl font-extrabold text-foreground">
+          🛰️ Mapa de Vegetación (NDVI)
+        </h2>
+        <button
+          onClick={fetchFromEarthEngine}
+          disabled={loading}
+          className="flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 rounded-full px-3 py-1.5 hover:bg-primary/20 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          Actualizar
+        </button>
+      </div>
+
+      {/* Data source indicator */}
+      <div className={`flex items-center gap-2 text-xs font-semibold mb-3 px-3 py-2 rounded-xl ${
+        dataSource === "satellite"
+          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+      }`}>
+        {dataSource === "satellite" ? (
+          <>
+            <Satellite className="w-4 h-4" />
+            🛰️ Datos reales de Google Earth Engine (MODIS)
+          </>
+        ) : (
+          <>
+            <AlertTriangle className="w-4 h-4" />
+            ⚠️ {error || "Datos simulados · Reconectando al satélite..."}
+          </>
+        )}
+      </div>
+
       <p className="text-sm text-muted-foreground font-semibold mb-3">
         👆 Toca el mapa para ver la salud de los cultivos en cualquier punto
       </p>
 
-      <div className="rounded-2xl overflow-hidden border-2 border-border shadow-lg" style={{ height: 380 }}>
+      <div className="rounded-2xl overflow-hidden border-2 border-border shadow-lg relative" style={{ height: 380 }}>
+        {loading && (
+          <div className="absolute inset-0 z-[1000] bg-background/60 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              <p className="text-sm font-bold text-foreground">Consultando satélite...</p>
+            </div>
+          </div>
+        )}
         <MapContainer
           center={[-13.5, -72.0]}
           zoom={6}
@@ -127,9 +243,16 @@ const NDVIMap = () => {
                   <div className="text-center p-1">
                     <p className="font-extrabold text-base">{point.label}</p>
                     <p className="text-2xl my-1">{getNDVILabel(point.ndvi)}</p>
-                    <p className="font-bold text-sm">NDVI: {point.ndvi.toFixed(2)}</p>
+                    {point.ndvi !== null && (
+                      <p className="font-bold text-sm">NDVI: {point.ndvi.toFixed(2)}</p>
+                    )}
+                    <p className="text-xs mt-1" style={{ color: point.source === "satellite" ? "#16a34a" : "#d97706" }}>
+                      {point.source === "satellite" ? "🛰️ Dato satelital" : "📊 Dato simulado"}
+                    </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {point.ndvi < 0.3
+                      {point.ndvi === null
+                        ? "⏳ Cargando datos..."
+                        : point.ndvi < 0.3
                         ? "⚠️ Cultivos en riesgo. Riegue más."
                         : "✅ Vegetación en buen estado."}
                     </p>
@@ -164,7 +287,9 @@ const NDVIMap = () => {
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2 font-semibold">
-          🛰️ Datos simulados · Se conectará a Earth Engine próximamente
+          {dataSource === "satellite"
+            ? "🛰️ Fuente: Google Earth Engine · MODIS/061/MOD13A2"
+            : "🛰️ Datos simulados · Se conectará a Earth Engine próximamente"}
         </p>
       </div>
     </div>
