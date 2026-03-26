@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      sensor_readings: {
+        Row: {
+          created_at: string
+          device_id: string
+          humedad: number | null
+          humedad_suelo: number | null
+          id: string
+          lat: number
+          lon: number
+          source: string
+          temperatura: number | null
+          timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          humedad?: number | null
+          humedad_suelo?: number | null
+          id?: string
+          lat: number
+          lon: number
+          source?: string
+          temperatura?: number | null
+          timestamp?: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          humedad?: number | null
+          humedad_suelo?: number | null
+          id?: string
+          lat?: number
+          lon?: number
+          source?: string
+          temperatura?: number | null
+          timestamp?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
