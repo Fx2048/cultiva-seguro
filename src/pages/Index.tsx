@@ -9,7 +9,7 @@ import OnboardingTutorial from "@/components/OnboardingTutorial";
 import { useWeather } from "@/hooks/useWeather";
 
 const Index = () => {
-  const { weather, loading } = useWeather();
+  const { weather, loading, error } = useWeather();
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("es", {
