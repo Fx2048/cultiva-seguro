@@ -78,7 +78,7 @@ async function fetchNDVI(
   const imageId = getRecentModisImageId();
   console.log(`Using MODIS image: ${imageId}`);
 
-  const url = `https://earthengine.googleapis.com/v1/projects/${projectId}/value:compute`;
+  const url = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
 
   // Simple expression: load single image, select NDVI band, sample at point
   const body = {
