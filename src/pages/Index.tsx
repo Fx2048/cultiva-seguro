@@ -6,7 +6,9 @@ import QuickTips from "@/components/QuickTips";
 import PredictiveMap from "@/components/PredictiveMap";
 import NDVIMap from "@/components/NDVIMap";
 import OnboardingTutorial from "@/components/OnboardingTutorial";
+import ConnectivityBadge from "@/components/ConnectivityBadge";
 import { useWeather } from "@/hooks/useWeather";
+import { useConnectivity } from "@/hooks/useConnectivity";
 
 const Index = () => {
   const { weather, loading, error } = useWeather();
