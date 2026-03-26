@@ -12,6 +12,7 @@ import { useConnectivity } from "@/hooks/useConnectivity";
 
 const Index = () => {
   const { weather, loading, error } = useWeather();
+  const { isOnline, justReconnected } = useConnectivity();
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("es", {
