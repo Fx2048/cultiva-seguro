@@ -91,6 +91,7 @@ const NDVIMap = () => {
         if (hasReal) {
           setPoints(eePoints);
           setDataSource("satellite");
+          offlineCache.setNDVI(eePoints);
         } else {
           throw new Error("No se obtuvieron datos del satélite");
         }
