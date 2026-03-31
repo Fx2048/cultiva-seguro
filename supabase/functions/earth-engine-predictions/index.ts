@@ -109,15 +109,20 @@ async function fetchMonthlyLST(
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`❌ LST API error ${res.status}: ${errText.substring(0, 300)}`);
+      return null;
+    }
     const data = await res.json();
+    console.log(`🔍 LST raw response ${year}-${month}:`, JSON.stringify(data).substring(0, 500));
     const dayLST = data?.result?.LST_Day_1km;
     const nightLST = data?.result?.LST_Night_1km;
     if (dayLST == null && nightLST == null) return null;
     const dayC = dayLST != null ? (dayLST * 0.02) - 273.15 : null;
     const nightC = nightLST != null ? (nightLST * 0.02) - 273.15 : null;
     return { dayC, nightC } as any;
-  } catch { return null; }
+  } catch (e) { console.error(`❌ LST fetch error:`, e); return null; }
 }
 
 async function fetchMonthlyNDVI(
