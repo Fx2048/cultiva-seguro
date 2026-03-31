@@ -379,6 +379,64 @@ function computePredictions(historicalData: any[], currentMonth: number, current
   };
 }
 
+function generateFallbackPredictions(lat: number, lon: number, regionName: string) {
+  console.warn('⚠️ Generando datos de respaldo (mock) para demo');
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+  const baselines: Record<number, { temp: number, precip: number, ndvi: number }> = {
+    1: { temp: 3.2, precip: 120, ndvi: 0.45 }, 2: { temp: 3.5, precip: 110, ndvi: 0.48 },
+    3: { temp: 2.8, precip: 80, ndvi: 0.44 }, 4: { temp: 0.5, precip: 30, ndvi: 0.38 },
+    5: { temp: -2.1, precip: 12, ndvi: 0.30 }, 6: { temp: -4.5, precip: 5, ndvi: 0.25 },
+    7: { temp: -5.2, precip: 4, ndvi: 0.22 }, 8: { temp: -3.8, precip: 8, ndvi: 0.24 },
+    9: { temp: -1.2, precip: 15, ndvi: 0.28 }, 10: { temp: 1.0, precip: 35, ndvi: 0.33 },
+    11: { temp: 2.2, precip: 55, ndvi: 0.38 }, 12: { temp: 3.0, precip: 95, ndvi: 0.42 },
+  };
+
+  const predictions = [];
+  for (let i = 0; i < 10; i++) {
+    const m = ((currentMonth - 1 + i + 1) % 12) + 1;
+    const y = currentYear + Math.floor((currentMonth + i) / 12);
+    const b = baselines[m];
+    const frostProb = b.temp < 0 ? Math.min(90, Math.abs(b.temp) * 15) : Math.max(0, (2 - b.temp) * 10);
+    const frostDays = Math.round(frostProb / 100 * 30);
+    const spi = (b.precip - 50) / 40;
+    const droughtProb = spi < -1 ? 70 : spi < 0 ? 30 : 10;
+    const frostRisk = frostProb > 60 ? "ALTO" : frostProb > 30 ? "MODERADO" : "BAJO";
+    const droughtRisk = spi < -1.5 ? "ALTO" : spi < -0.5 ? "MODERADO" : "BAJO";
+    const overallRisk = frostRisk === "ALTO" || droughtRisk === "ALTO" ? "ALTO" :
+      frostRisk === "MODERADO" || droughtRisk === "MODERADO" ? "MODERADO" : "BAJO";
+    const confidence = i < 3 ? 0.88 : i < 6 ? 0.70 : 0.50;
+    const recs: string[] = [];
+    if (frostProb > 60) recs.push("🔴 Activar protocolo de riego de defensa contra heladas");
+    if (frostProb > 30) recs.push("🟡 Monitorear temperatura nocturna");
+    if (spi < -1) recs.push("🔴 Programar riego suplementario urgente");
+    if (recs.length === 0) recs.push("🟢 Condiciones favorables para cultivos");
+
+    predictions.push({
+      month: `${y}-${String(m).padStart(2, '0')}`,
+      month_name: MONTH_NAMES[m - 1],
+      heladas: { probabilidad: Math.round(frostProb * 10) / 10, dias_esperados: frostDays,
+        temp_minima_predicha: Math.round(b.temp * 10) / 10, confianza: confidence,
+        nivel_riesgo: frostRisk, fechas_criticas: [] },
+      sequia: { spi_index: Math.round(spi * 100) / 100, probabilidad: Math.round(droughtProb * 10) / 10,
+        precipitacion_esperada_mm: b.precip, deficit_hidrico_mm: Math.max(0, Math.round((50 - b.precip) * 10) / 10),
+        confianza: confidence - 0.05, nivel_riesgo: droughtRisk },
+      ndvi_predicho: b.ndvi, riesgo_total: overallRisk, recomendaciones: recs,
+    });
+  }
+
+  return {
+    success: true, fallback: true, region: regionName || "Personalizada",
+    coordinates: { lat, lon }, generated_at: now.toISOString(), forecast_period: "10 meses",
+    predictions,
+    historical_baseline: { avg_temp_min: -1.5, avg_precipitation_mm: 47, avg_ndvi: 0.35, years_analyzed: 0 },
+    model_metrics: { heladas_rmse: 0, sequia_rmse: 0, r_squared: 0 },
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -392,8 +450,20 @@ serve(async (req) => {
     const { lat, lon, region_name } = await req.json();
     if (lat == null || lon == null) throw new Error("Provide lat and lon");
 
-    console.log(`Fetching predictions for ${region_name || "custom"} (${lat}, ${lon})`);
-    const accessToken = await getAccessToken(credentials);
+    console.log(`🛰️ Conectando a Google Earth Engine para ${region_name || "custom"} (${lat}, ${lon})`);
+    
+    let accessToken: string;
+    try {
+      accessToken = await getAccessToken(credentials);
+      console.log('🔑 Token de acceso obtenido correctamente');
+    } catch (tokenErr) {
+      console.error('❌ GEE Error (auth):', tokenErr);
+      console.warn('⚠️ Usando datos de respaldo para demo');
+      const fallback = generateFallbackPredictions(lat, lon, region_name);
+      return new Response(JSON.stringify(fallback), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -401,6 +471,7 @@ serve(async (req) => {
 
     const historicalData: any[] = [];
     const yearsToFetch = [currentYear - 3, currentYear - 2, currentYear - 1];
+    let nullCount = 0;
 
     for (const year of yearsToFetch) {
       for (let month = 1; month <= 12; month++) {
@@ -410,14 +481,28 @@ serve(async (req) => {
           fetchMonthlyPrecipitation(accessToken, lat, lon, year, month),
         ]);
         historicalData.push({ year, month, lst, ndvi, precip });
-        console.log(`Fetched ${year}-${month}: LST=${JSON.stringify(lst)}, NDVI=${ndvi}, Precip=${precip}`);
+        if (lst == null && ndvi == null && precip == null) nullCount++;
+        console.log(`📊 ${year}-${month}: LST=${JSON.stringify(lst)}, NDVI=${ndvi}, Precip=${precip}`);
       }
     }
 
+    console.log(`📊 Datos históricos obtenidos: ${historicalData.length} meses, ${nullCount} vacíos`);
+
+    // If all data is null, use fallback
+    if (nullCount === historicalData.length) {
+      console.warn('⚠️ Todos los datos son null — usando datos de respaldo para demo');
+      const fallback = generateFallbackPredictions(lat, lon, region_name);
+      return new Response(JSON.stringify(fallback), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const result = computePredictions(historicalData, currentMonth, currentYear);
+    console.log(`🧠 Predicción generada: ${result.predictions.length} meses proyectados`);
 
     return new Response(JSON.stringify({
       success: true,
+      fallback: false,
       region: region_name || "Personalizada",
       coordinates: { lat, lon },
       generated_at: now.toISOString(),
@@ -427,7 +512,20 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("Prediction error:", err);
+    console.error("❌ GEE Error:", err);
+
+    // Try to parse lat/lon from request for fallback
+    try {
+      const body = await req.clone().json().catch(() => ({}));
+      if (body.lat != null && body.lon != null) {
+        console.warn('⚠️ Usando datos de respaldo para demo');
+        const fallback = generateFallbackPredictions(body.lat, body.lon, body.region_name);
+        return new Response(JSON.stringify(fallback), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch {}
+
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
