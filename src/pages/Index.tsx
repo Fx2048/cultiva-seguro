@@ -106,6 +106,17 @@ const Index = () => {
           alertLevel={weather?.alertLevel ?? "safe"}
         />
 
+        {/* Predicciones Link */}
+        <Link to="/predicciones">
+          <div className="rounded-2xl border-2 border-dashed border-frost/30 p-4 flex items-center justify-center gap-3 hover:bg-frost/5 transition-colors cursor-pointer">
+            <Thermometer className="w-6 h-6 text-frost" />
+            <div>
+              <p className="font-bold text-sm">🔮 Predicciones 10 Meses</p>
+              <p className="text-xs text-muted-foreground">Heladas y sequías con datos satelitales</p>
+            </div>
+          </div>
+        </Link>
+
         {/* Mis Datos Link */}
         <Link to="/mis-datos">
           <div className="rounded-2xl border-2 border-dashed border-primary/30 p-4 flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors cursor-pointer">
