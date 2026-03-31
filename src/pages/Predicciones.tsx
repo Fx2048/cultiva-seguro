@@ -235,6 +235,14 @@ const Predicciones = () => {
           </div>
         )}
 
+        {statusMsg && !loading && !error && (
+          <div className={`rounded-2xl border-2 p-3 text-center text-sm font-bold ${
+            isFallback ? "border-warning bg-warning/10 text-warning" : "border-safe bg-safe/10 text-safe"
+          }`}>
+            {statusMsg}
+          </div>
+        )}
+
         {data && (
           <>
             {/* Export button */}
