@@ -264,10 +264,15 @@ async function fetchMonthlyPrecipitation(
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`❌ Precip API error ${res.status}: ${errText.substring(0, 300)}`);
+      return null;
+    }
     const data = await res.json();
+    console.log(`🔍 Precip raw response ${year}-${month}:`, JSON.stringify(data).substring(0, 500));
     return data?.result?.precipitation ?? null;
-  } catch { return null; }
+  } catch (e) { console.error(`❌ Precip fetch error:`, e); return null; }
 }
 
 const MONTH_NAMES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
