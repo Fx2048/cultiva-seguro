@@ -1,4 +1,5 @@
-import { MapPin, Thermometer, Loader2 } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Database } from "lucide-react";
+import { Link } from "react-router-dom";
 import AlertBanner from "@/components/AlertBanner";
 import WeeklyForecast from "@/components/WeeklyForecast";
 import RiskCalendar from "@/components/RiskCalendar";
@@ -104,6 +105,17 @@ const Index = () => {
           locationName={weather?.locationName ?? "tu zona"}
           alertLevel={weather?.alertLevel ?? "safe"}
         />
+
+        {/* Mis Datos Link */}
+        <Link to="/mis-datos">
+          <div className="rounded-2xl border-2 border-dashed border-primary/30 p-4 flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors cursor-pointer">
+            <Database className="w-6 h-6 text-primary" />
+            <div>
+              <p className="font-bold text-sm">📊 Mis Datos</p>
+              <p className="text-xs text-muted-foreground">Historial, exportar y sincronizar</p>
+            </div>
+          </div>
+        </Link>
       </main>
     </div>
   );
