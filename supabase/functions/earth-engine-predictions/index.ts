@@ -41,10 +41,6 @@ async function getAccessToken(credentials: any): Promise<string> {
   return (await tokenRes.json()).access_token;
 }
 
-// Always use earthengine-legacy for compute endpoint
-function getComputeUrl(_projectId: string): string {
-  return `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
-}
 
 const GEE_COMPUTE_URL = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
 
