@@ -67,7 +67,8 @@ function makeFilteredCollection(collectionId: string, startDate: string, endDate
                     end: { constantValue: endDate }
                   }
                 }
-              }
+              },
+              rightField: { constantValue: "system:time_start" }
             }
           }
         }
