@@ -1,4 +1,5 @@
-import { MapPin, Thermometer, Loader2 } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Database } from "lucide-react";
+import { Link } from "react-router-dom";
 import AlertBanner from "@/components/AlertBanner";
 import WeeklyForecast from "@/components/WeeklyForecast";
 import RiskCalendar from "@/components/RiskCalendar";
