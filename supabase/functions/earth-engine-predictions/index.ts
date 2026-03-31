@@ -46,103 +46,114 @@ function getComputeUrl(_projectId: string): string {
   return `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
 }
 
+const GEE_COMPUTE_URL = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
+
+function makeFilteredCollection(collectionId: string, startDate: string, endDate: string) {
+  return {
+    functionInvocationValue: {
+      functionName: "Collection.filter",
+      arguments: {
+        collection: {
+          functionInvocationValue: {
+            functionName: "ImageCollection.load",
+            arguments: { id: { constantValue: collectionId } }
+          }
+        },
+        filter: {
+          functionInvocationValue: {
+            functionName: "Filter.dateRangeContains",
+            arguments: {
+              leftValue: {
+                functionInvocationValue: {
+                  functionName: "DateRange",
+                  arguments: {
+                    start: { constantValue: startDate },
+                    end: { constantValue: endDate }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
 async function fetchMonthlyData(
-  accessToken: string, projectId: string, lat: number, lon: number, year: number, month: number
+  accessToken: string, _projectId: string, lat: number, lon: number, year: number, month: number
 ): Promise<{ lst: any, ndvi: number | null, precip: number | null }> {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endMonth = month === 12 ? 1 : month + 1;
   const endYear = month === 12 ? year + 1 : year;
   const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
-  const url = getComputeUrl(projectId);
+
   const point = {
     functionInvocationValue: {
       functionName: "GeometryConstructors.Point",
       arguments: { coordinates: { constantValue: [lon, lat] } }
     }
   };
-  const reducer = { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } };
+  const meanReducer = { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } };
 
-  // Build a single expression that computes all three datasets
-  const makeReduceRegion = (collection: string, bands: string[], scale: number, useSum = false) => ({
-    functionInvocationValue: {
-      functionName: "Image.reduceRegion",
-      arguments: {
-        image: {
-          functionInvocationValue: {
-            functionName: "Image.select",
-            arguments: {
-              input: {
-                functionInvocationValue: {
-                  functionName: useSum ? "ImageCollection.reduce" : "ImageCollection.mean",
-                  arguments: useSum ? {
-                    collection: {
-                      functionInvocationValue: {
-                        functionName: "ImageCollection.filterDate",
-                        arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "ImageCollection.load",
-                              arguments: { id: { constantValue: collection } }
-                            }
-                          },
-                          start: { constantValue: startDate },
-                          end: { constantValue: endDate }
-                        }
-                      }
-                    },
-                    reducer: { functionInvocationValue: { functionName: "Reducer.sum", arguments: {} } }
-                  } : {
-                    collection: {
-                      functionInvocationValue: {
-                        functionName: "ImageCollection.filterDate",
-                        arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "ImageCollection.load",
-                              arguments: { id: { constantValue: collection } }
-                            }
-                          },
-                          start: { constantValue: startDate },
-                          end: { constantValue: endDate }
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              bandSelectors: { constantValue: bands }
+  const buildExpr = (collectionId: string, bands: string[], scale: number, useSum = false) => {
+    const filtered = makeFilteredCollection(collectionId, startDate, endDate);
+    const reduced = {
+      functionInvocationValue: {
+        functionName: "ImageCollection.reduce",
+        arguments: {
+          collection: filtered,
+          reducer: {
+            functionInvocationValue: {
+              functionName: useSum ? "Reducer.sum" : "Reducer.mean",
+              arguments: {}
             }
           }
-        },
-        reducer: reducer,
-        geometry: point,
-        scale: { constantValue: scale }
+        }
       }
-    }
-  });
+    };
+    const suffix = useSum ? "_sum" : "_mean";
+    const renamedBands = bands.map(b => b + suffix);
+    const selected = {
+      functionInvocationValue: {
+        functionName: "Image.select",
+        arguments: { input: reduced, bandSelectors: { constantValue: renamedBands } }
+      }
+    };
+    return {
+      expression: {
+        result: "0",
+        values: {
+          "0": {
+            functionInvocationValue: {
+              functionName: "Image.reduceRegion",
+              arguments: {
+                image: selected,
+                reducer: meanReducer,
+                geometry: point,
+                scale: { constantValue: scale }
+              }
+            }
+          }
+        }
+      }
+    };
+  };
 
-  // Fetch LST, NDVI, and Precipitation in parallel
-  const lstBands = ["LST_Day_1km", "LST_Night_1km"];
-  const ndviBands = ["NDVI"];
-  // For CHIRPS with sum+reduce, band name becomes "precipitation_sum"
-  const precipBands = ["precipitation_sum"];
-
-  const bodies = [
-    { expression: { result: "0", values: { "0": makeReduceRegion("MODIS/061/MOD11A2", lstBands, 1000) } } },
-    { expression: { result: "0", values: { "0": makeReduceRegion("MODIS/061/MOD13A2", ndviBands, 1000) } } },
-    { expression: { result: "0", values: { "0": makeReduceRegion("UCSB-CHG/CHIRPS/DAILY", precipBands, 5000, true) } } },
-  ];
+  const lstBody = buildExpr("MODIS/061/MOD11A2", ["LST_Day_1km", "LST_Night_1km"], 1000);
+  const ndviBody = buildExpr("MODIS/061/MOD13A2", ["NDVI"], 1000);
+  const precipBody = buildExpr("UCSB-CHG/CHIRPS/DAILY", ["precipitation"], 5000, true);
 
   const fetchOne = async (body: any, label: string) => {
     try {
-      const res = await fetch(url, {
+      const res = await fetch(GEE_COMPUTE_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const text = await res.text();
       if (!res.ok) {
-        console.error(`❌ ${label} API error ${res.status}: ${text.substring(0, 500)}`);
+        console.error(`❌ ${label} ${year}-${month} error ${res.status}: ${text.substring(0, 300)}`);
         return null;
       }
       const data = JSON.parse(text);
@@ -155,15 +166,15 @@ async function fetchMonthlyData(
   };
 
   const [lstData, ndviData, precipData] = await Promise.all([
-    fetchOne(bodies[0], "LST"),
-    fetchOne(bodies[1], "NDVI"),
-    fetchOne(bodies[2], "Precip"),
+    fetchOne(lstBody, "LST"),
+    fetchOne(ndviBody, "NDVI"),
+    fetchOne(precipBody, "Precip"),
   ]);
 
   let lst = null;
   if (lstData?.result) {
-    const dayLST = lstData.result.LST_Day_1km;
-    const nightLST = lstData.result.LST_Night_1km;
+    const dayLST = lstData.result.LST_Day_1km_mean;
+    const nightLST = lstData.result.LST_Night_1km_mean;
     if (dayLST != null || nightLST != null) {
       lst = {
         dayC: dayLST != null ? (dayLST * 0.02) - 273.15 : null,
@@ -173,14 +184,13 @@ async function fetchMonthlyData(
   }
 
   let ndvi = null;
-  if (ndviData?.result?.NDVI != null) {
-    ndvi = ndviData.result.NDVI * 0.0001;
+  if (ndviData?.result?.NDVI_mean != null) {
+    ndvi = ndviData.result.NDVI_mean * 0.0001;
   }
 
   let precip = null;
   if (precipData?.result) {
-    // Could be "precipitation_sum" or "precipitation"
-    precip = precipData.result.precipitation_sum ?? precipData.result.precipitation ?? null;
+    precip = precipData.result.precipitation_sum ?? null;
   }
 
   return { lst, ndvi, precip };
