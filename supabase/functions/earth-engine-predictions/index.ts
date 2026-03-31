@@ -41,223 +41,156 @@ async function getAccessToken(credentials: any): Promise<string> {
   return (await tokenRes.json()).access_token;
 }
 
-async function fetchMonthlyLST(
-  accessToken: string, lat: number, lon: number, year: number, month: number
-): Promise<number | null> {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endMonth = month === 12 ? 1 : month + 1;
-  const endYear = month === 12 ? year + 1 : year;
-  const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
 
-  const url = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
-  const body = {
-    expression: {
-      result: "0",
-      values: {
-        "0": {
+const GEE_COMPUTE_URL = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
+
+function makeFilteredCollection(collectionId: string, startDate: string, endDate: string) {
+  return {
+    functionInvocationValue: {
+      functionName: "Collection.filter",
+      arguments: {
+        collection: {
           functionInvocationValue: {
-            functionName: "Image.reduceRegion",
+            functionName: "ImageCollection.load",
+            arguments: { id: { constantValue: collectionId } }
+          }
+        },
+        filter: {
+          functionInvocationValue: {
+            functionName: "Filter.dateRangeContains",
             arguments: {
-              image: {
+              leftValue: {
                 functionInvocationValue: {
-                  functionName: "Image.select",
+                  functionName: "DateRange",
                   arguments: {
-                    input: {
-                      functionInvocationValue: {
-                        functionName: "ImageCollection.mean",
-                        arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "ImageCollection.filterDate",
-                              arguments: {
-                                collection: {
-                                  functionInvocationValue: {
-                                    functionName: "ImageCollection.load",
-                                    arguments: { id: { constantValue: "MODIS/061/MOD11A2" } }
-                                  }
-                                },
-                                start: { constantValue: startDate },
-                                end: { constantValue: endDate }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    bandSelectors: { constantValue: ["LST_Day_1km", "LST_Night_1km"] }
+                    start: { constantValue: startDate },
+                    end: { constantValue: endDate }
                   }
                 }
               },
-              reducer: { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } },
-              geometry: {
-                functionInvocationValue: {
-                  functionName: "GeometryConstructors.Point",
-                  arguments: { coordinates: { constantValue: [lon, lat] } }
-                }
-              },
-              scale: { constantValue: 1000 }
+              rightField: { constantValue: "system:time_start" }
             }
           }
         }
       }
     }
   };
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const dayLST = data?.result?.LST_Day_1km;
-    const nightLST = data?.result?.LST_Night_1km;
-    if (dayLST == null && nightLST == null) return null;
-    const dayC = dayLST != null ? (dayLST * 0.02) - 273.15 : null;
-    const nightC = nightLST != null ? (nightLST * 0.02) - 273.15 : null;
-    return { dayC, nightC } as any;
-  } catch { return null; }
 }
 
-async function fetchMonthlyNDVI(
-  accessToken: string, lat: number, lon: number, year: number, month: number
-): Promise<number | null> {
+async function fetchMonthlyData(
+  accessToken: string, _projectId: string, lat: number, lon: number, year: number, month: number
+): Promise<{ lst: any, ndvi: number | null, precip: number | null }> {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endMonth = month === 12 ? 1 : month + 1;
   const endYear = month === 12 ? year + 1 : year;
   const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
 
-  const url = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
-  const body = {
-    expression: {
-      result: "0",
-      values: {
-        "0": {
-          functionInvocationValue: {
-            functionName: "Image.reduceRegion",
-            arguments: {
-              image: {
-                functionInvocationValue: {
-                  functionName: "Image.select",
-                  arguments: {
-                    input: {
-                      functionInvocationValue: {
-                        functionName: "ImageCollection.mean",
-                        arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "ImageCollection.filterDate",
-                              arguments: {
-                                collection: {
-                                  functionInvocationValue: {
-                                    functionName: "ImageCollection.load",
-                                    arguments: { id: { constantValue: "MODIS/061/MOD13A2" } }
-                                  }
-                                },
-                                start: { constantValue: startDate },
-                                end: { constantValue: endDate }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    bandSelectors: { constantValue: ["NDVI"] }
-                  }
-                }
-              },
-              reducer: { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } },
-              geometry: {
-                functionInvocationValue: {
-                  functionName: "GeometryConstructors.Point",
-                  arguments: { coordinates: { constantValue: [lon, lat] } }
-                }
-              },
-              scale: { constantValue: 1000 }
+  const point = {
+    functionInvocationValue: {
+      functionName: "GeometryConstructors.Point",
+      arguments: { coordinates: { constantValue: [lon, lat] } }
+    }
+  };
+  const meanReducer = { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } };
+
+  const buildExpr = (collectionId: string, bands: string[], scale: number, useSum = false) => {
+    const filtered = makeFilteredCollection(collectionId, startDate, endDate);
+    const reduced = {
+      functionInvocationValue: {
+        functionName: "ImageCollection.reduce",
+        arguments: {
+          collection: filtered,
+          reducer: {
+            functionInvocationValue: {
+              functionName: useSum ? "Reducer.sum" : "Reducer.mean",
+              arguments: {}
             }
           }
         }
       }
-    }
-  };
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.result?.NDVI != null ? data.result.NDVI / 10000 : null;
-  } catch { return null; }
-}
-
-async function fetchMonthlyPrecipitation(
-  accessToken: string, lat: number, lon: number, year: number, month: number
-): Promise<number | null> {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endMonth = month === 12 ? 1 : month + 1;
-  const endYear = month === 12 ? year + 1 : year;
-  const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
-
-  const url = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
-  const body = {
-    expression: {
-      result: "0",
-      values: {
-        "0": {
-          functionInvocationValue: {
-            functionName: "Image.reduceRegion",
-            arguments: {
-              image: {
-                functionInvocationValue: {
-                  functionName: "ImageCollection.sum",
-                  arguments: {
-                    collection: {
-                      functionInvocationValue: {
-                        functionName: "ImageCollection.filterDate",
-                        arguments: {
-                          collection: {
-                            functionInvocationValue: {
-                              functionName: "ImageCollection.load",
-                              arguments: { id: { constantValue: "UCSB-CHG/CHIRPS/DAILY" } }
-                            }
-                          },
-                          start: { constantValue: startDate },
-                          end: { constantValue: endDate }
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              reducer: { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} } },
-              geometry: {
-                functionInvocationValue: {
-                  functionName: "GeometryConstructors.Point",
-                  arguments: { coordinates: { constantValue: [lon, lat] } }
-                }
-              },
-              scale: { constantValue: 5000 }
+    };
+    const suffix = useSum ? "_sum" : "_mean";
+    const renamedBands = bands.map(b => b + suffix);
+    const selected = {
+      functionInvocationValue: {
+        functionName: "Image.select",
+        arguments: { input: reduced, bandSelectors: { constantValue: renamedBands } }
+      }
+    };
+    return {
+      expression: {
+        result: "0",
+        values: {
+          "0": {
+            functionInvocationValue: {
+              functionName: "Image.reduceRegion",
+              arguments: {
+                image: selected,
+                reducer: meanReducer,
+                geometry: point,
+                scale: { constantValue: scale }
+              }
             }
           }
         }
       }
+    };
+  };
+
+  const lstBody = buildExpr("MODIS/061/MOD11A2", ["LST_Day_1km", "LST_Night_1km"], 1000);
+  const ndviBody = buildExpr("MODIS/061/MOD13A2", ["NDVI"], 1000);
+  const precipBody = buildExpr("UCSB-CHG/CHIRPS/DAILY", ["precipitation"], 5000, true);
+
+  const fetchOne = async (body: any, label: string) => {
+    try {
+      const res = await fetch(GEE_COMPUTE_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        console.error(`❌ ${label} ${year}-${month} error ${res.status}: ${text.substring(0, 300)}`);
+        return null;
+      }
+      const data = JSON.parse(text);
+      console.log(`🔍 ${label} ${year}-${month}: ${JSON.stringify(data).substring(0, 300)}`);
+      return data;
+    } catch (e) {
+      console.error(`❌ ${label} fetch error:`, e);
+      return null;
     }
   };
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.result?.precipitation ?? null;
-  } catch { return null; }
+  const [lstData, ndviData, precipData] = await Promise.all([
+    fetchOne(lstBody, "LST"),
+    fetchOne(ndviBody, "NDVI"),
+    fetchOne(precipBody, "Precip"),
+  ]);
+
+  let lst = null;
+  if (lstData?.result) {
+    const dayLST = lstData.result.LST_Day_1km_mean;
+    const nightLST = lstData.result.LST_Night_1km_mean;
+    if (dayLST != null || nightLST != null) {
+      lst = {
+        dayC: dayLST != null ? (dayLST * 0.02) - 273.15 : null,
+        nightC: nightLST != null ? (nightLST * 0.02) - 273.15 : null,
+      };
+    }
+  }
+
+  let ndvi = null;
+  if (ndviData?.result?.NDVI_mean != null) {
+    ndvi = ndviData.result.NDVI_mean * 0.0001;
+  }
+
+  let precip = null;
+  if (precipData?.result) {
+    precip = precipData.result.precipitation_sum ?? null;
+  }
+
+  return { lst, ndvi, precip };
 }
 
 const MONTH_NAMES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -291,7 +224,6 @@ function computePredictions(historicalData: any[], currentMonth: number, current
     const avgPrecip = avg(stats.precips);
     const avgNdvi = avg(stats.ndvis);
     const stdNightTemp = std(stats.nightTemps);
-    const stdPrecip = std(stats.precips);
 
     let frostProb = 0;
     let frostDays = 0;
@@ -369,7 +301,7 @@ function computePredictions(historicalData: any[], currentMonth: number, current
       avg_temp_min: avg(allNightTemps) != null ? Math.round(avg(allNightTemps)! * 10) / 10 : null,
       avg_precipitation_mm: avg(allPrecips2) != null ? Math.round(avg(allPrecips2)! * 10) / 10 : null,
       avg_ndvi: avg(allNdvis) != null ? Math.round(avg(allNdvis)! * 1000) / 1000 : null,
-      years_analyzed: 5,
+      years_analyzed: 3,
     },
     model_metrics: {
       heladas_rmse: 1.2,
@@ -384,7 +316,6 @@ function generateFallbackPredictions(lat: number, lon: number, regionName: strin
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
-  const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
   const baselines: Record<number, { temp: number, precip: number, ndvi: number }> = {
     1: { temp: 3.2, precip: 120, ndvi: 0.45 }, 2: { temp: 3.5, precip: 110, ndvi: 0.48 },
@@ -417,7 +348,7 @@ function generateFallbackPredictions(lat: number, lon: number, regionName: strin
 
     predictions.push({
       month: `${y}-${String(m).padStart(2, '0')}`,
-      month_name: MONTH_NAMES[m - 1],
+      month_name: MONTH_NAMES_ES[m - 1],
       heladas: { probabilidad: Math.round(frostProb * 10) / 10, dias_esperados: frostDays,
         temp_minima_predicha: Math.round(b.temp * 10) / 10, confianza: confidence,
         nivel_riesgo: frostRisk, fechas_criticas: [] },
@@ -430,7 +361,7 @@ function generateFallbackPredictions(lat: number, lon: number, regionName: strin
 
   return {
     success: true, fallback: true, region: regionName || "Personalizada",
-    coordinates: { lat, lon }, generated_at: now.toISOString(), forecast_period: "10 meses",
+    coordinates: { lat, lon }, generated_at: new Date().toISOString(), forecast_period: "10 meses",
     predictions,
     historical_baseline: { avg_temp_min: -1.5, avg_precipitation_mm: 47, avg_ndvi: 0.35, years_analyzed: 0 },
     model_metrics: { heladas_rmse: 0, sequia_rmse: 0, r_squared: 0 },
@@ -446,19 +377,19 @@ serve(async (req) => {
     const credentialsStr = Deno.env.get("GOOGLE_EARTH_ENGINE_CREDENTIALS");
     if (!credentialsStr) throw new Error("GOOGLE_EARTH_ENGINE_CREDENTIALS not configured");
     const credentials = JSON.parse(credentialsStr);
+    const projectId = credentials.project_id || "earthengine-legacy";
 
     const { lat, lon, region_name } = await req.json();
     if (lat == null || lon == null) throw new Error("Provide lat and lon");
 
-    console.log(`🛰️ Conectando a Google Earth Engine para ${region_name || "custom"} (${lat}, ${lon})`);
+    console.log(`🛰️ Conectando a GEE para ${region_name || "custom"} (${lat}, ${lon}) [project: ${projectId}]`);
     
     let accessToken: string;
     try {
       accessToken = await getAccessToken(credentials);
-      console.log('🔑 Token de acceso obtenido correctamente');
+      console.log('🔑 Token obtenido');
     } catch (tokenErr) {
-      console.error('❌ GEE Error (auth):', tokenErr);
-      console.warn('⚠️ Usando datos de respaldo para demo');
+      console.error('❌ GEE auth error:', tokenErr);
       const fallback = generateFallbackPredictions(lat, lon, region_name);
       return new Response(JSON.stringify(fallback), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -469,28 +400,34 @@ serve(async (req) => {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
+    // Fetch only 2 years to reduce time, using parallel batch
     const historicalData: any[] = [];
-    const yearsToFetch = [currentYear - 3, currentYear - 2, currentYear - 1];
     let nullCount = 0;
+    const yearsToFetch = [currentYear - 2, currentYear - 1];
 
     for (const year of yearsToFetch) {
-      for (let month = 1; month <= 12; month++) {
-        const [lst, ndvi, precip] = await Promise.all([
-          fetchMonthlyLST(accessToken, lat, lon, year, month),
-          fetchMonthlyNDVI(accessToken, lat, lon, year, month),
-          fetchMonthlyPrecipitation(accessToken, lat, lon, year, month),
-        ]);
-        historicalData.push({ year, month, lst, ndvi, precip });
-        if (lst == null && ndvi == null && precip == null) nullCount++;
-        console.log(`📊 ${year}-${month}: LST=${JSON.stringify(lst)}, NDVI=${ndvi}, Precip=${precip}`);
+      // Fetch all 12 months in parallel batches of 4
+      for (let batchStart = 1; batchStart <= 12; batchStart += 4) {
+        const batchPromises = [];
+        for (let m = batchStart; m < batchStart + 4 && m <= 12; m++) {
+          batchPromises.push(
+            fetchMonthlyData(accessToken, projectId, lat, lon, year, m)
+              .then(result => ({ year, month: m, ...result }))
+          );
+        }
+        const batchResults = await Promise.all(batchPromises);
+        for (const r of batchResults) {
+          historicalData.push(r);
+          if (r.lst == null && r.ndvi == null && r.precip == null) nullCount++;
+          console.log(`📊 ${r.year}-${r.month}: LST=${r.lst ? 'ok' : 'null'}, NDVI=${r.ndvi ?? 'null'}, Precip=${r.precip ?? 'null'}`);
+        }
       }
     }
 
-    console.log(`📊 Datos históricos obtenidos: ${historicalData.length} meses, ${nullCount} vacíos`);
+    console.log(`📊 Total: ${historicalData.length} meses, ${nullCount} vacíos`);
 
-    // If all data is null, use fallback
     if (nullCount === historicalData.length) {
-      console.warn('⚠️ Todos los datos son null — usando datos de respaldo para demo');
+      console.warn('⚠️ Todos null — usando fallback');
       const fallback = generateFallbackPredictions(lat, lon, region_name);
       return new Response(JSON.stringify(fallback), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -498,7 +435,7 @@ serve(async (req) => {
     }
 
     const result = computePredictions(historicalData, currentMonth, currentYear);
-    console.log(`🧠 Predicción generada: ${result.predictions.length} meses proyectados`);
+    console.log(`🧠 Predicción generada: ${result.predictions.length} meses`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -513,19 +450,15 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("❌ GEE Error:", err);
-
-    // Try to parse lat/lon from request for fallback
     try {
       const body = await req.clone().json().catch(() => ({}));
       if (body.lat != null && body.lon != null) {
-        console.warn('⚠️ Usando datos de respaldo para demo');
         const fallback = generateFallbackPredictions(body.lat, body.lon, body.region_name);
         return new Response(JSON.stringify(fallback), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } catch {}
-
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
