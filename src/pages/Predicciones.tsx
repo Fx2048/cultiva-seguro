@@ -79,18 +79,34 @@ const Predicciones = () => {
   const [data, setData] = useState<PredictionResult | null>(null);
   const [showExport, setShowExport] = useState(false);
 
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
+
   const fetchPredictions = async () => {
     setLoading(true);
     setError(null);
+    setStatusMsg("⏳ Cargando datos satelitales...");
+    setIsFallback(false);
+    console.log('🔮 Solicitando predicción para:', { region: selectedRegion.name, lat: selectedRegion.lat, lon: selectedRegion.lon });
     try {
       const { data: result, error: err } = await supabase.functions.invoke("earth-engine-predictions", {
         body: { lat: selectedRegion.lat, lon: selectedRegion.lon, region_name: selectedRegion.name },
       });
+      console.log('📡 Respuesta de Edge Function:', result);
       if (err) throw new Error(err.message);
       if (!result?.success) throw new Error(result?.error || "Error desconocido");
       setData(result as PredictionResult);
+      if (result.fallback) {
+        setIsFallback(true);
+        setStatusMsg("⚠️ Datos de respaldo (demo) — GEE no disponible");
+        console.warn('⚠️ Usando datos de respaldo para demo');
+      } else {
+        setStatusMsg("✅ Predicción generada con datos satelitales reales");
+      }
     } catch (e: any) {
+      console.error('❌ Error en predicción:', e);
       setError(e.message);
+      setStatusMsg(null);
     } finally {
       setLoading(false);
     }
