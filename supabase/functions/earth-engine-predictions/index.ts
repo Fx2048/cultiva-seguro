@@ -193,10 +193,15 @@ async function fetchMonthlyNDVI(
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`❌ NDVI API error ${res.status}: ${errText.substring(0, 300)}`);
+      return null;
+    }
     const data = await res.json();
+    console.log(`🔍 NDVI raw response ${year}-${month}:`, JSON.stringify(data).substring(0, 500));
     return data?.result?.NDVI != null ? data.result.NDVI / 10000 : null;
-  } catch { return null; }
+  } catch (e) { console.error(`❌ NDVI fetch error:`, e); return null; }
 }
 
 async function fetchMonthlyPrecipitation(
