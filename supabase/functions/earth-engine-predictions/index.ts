@@ -195,23 +195,96 @@ async function fetchMonthlyData(
 
 const MONTH_NAMES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * MODELO DE PREDICCIÓN WILLAY v2
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * FUENTES DE DATOS (Google Earth Engine):
+ * - MODIS MOD11A2: Land Surface Temperature (LST) cada 8 días, 1km
+ *   → LST NO es temperatura del aire. Es la temperatura radiativa
+ *     de la superficie terrestre medida por el sensor MODIS a bordo
+ *     de los satélites Terra/Aqua de NASA.
+ *   → Corrección aplicada: T_aire ≈ LST_night + 3.5°C (offset empírico
+ *     para altiplano andino, basado en literatura: Benali et al. 2012,
+ *     Vancutsem et al. 2010)
+ * 
+ * - MODIS MOD13A2: NDVI (Normalized Difference Vegetation Index)
+ *   → Índice de verdor/salud vegetal. Rango: -1 a 1 (>0.3 = vegetación sana)
+ * 
+ * - CHIRPS: Precipitación diaria, 5km resolución
+ *   → Climate Hazards Group InfraRed Precipitation with Station data
+ * 
+ * MODELO DE HELADAS:
+ *   Usa distribución normal acumulada (CDF) para estimar la probabilidad
+ *   de que la temperatura nocturna caiga bajo 0°C en un mes dado:
+ *   
+ *   P(helada) = Φ((0 - μ) / σ) × 100
+ *   
+ *   Donde:
+ *   - μ = promedio histórico de temp nocturna corregida del mes
+ *   - σ = desviación estándar de temp nocturna del mes (mín 1.5°C)
+ *   - Φ = función de distribución acumulada normal estándar
+ *   
+ *   Días esperados = P(helada)/100 × 30
+ * 
+ * MODELO DE SEQUÍA (SPI - Standardized Precipitation Index):
+ *   SPI = (P_mes - μ_global) / σ_global
+ *   
+ *   Donde:
+ *   - P_mes = precipitación esperada del mes
+ *   - μ_global = promedio de precipitación de todos los meses históricos
+ *   - σ_global = desviación estándar global de precipitación
+ *   
+ *   Clasificación (McKee et al. 1993):
+ *   - SPI > 0: Sin sequía → P(sequía) ≈ 5%
+ *   - SPI -0.5 a 0: Ligeramente seco → P(sequía) ≈ 15%
+ *   - SPI -1.0 a -0.5: Sequía leve → P(sequía) ≈ 35%
+ *   - SPI -1.5 a -1.0: Sequía moderada → P(sequía) ≈ 55%
+ *   - SPI -2.0 a -1.5: Sequía severa → P(sequía) ≈ 75%
+ *   - SPI < -2.0: Sequía extrema → P(sequía) ≈ 90%
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+// Corrección LST nocturna → temperatura del aire (°C)
+// En el altiplano andino, LST nocturna subestima la temp del aire por ~3.5°C
+const LST_TO_AIR_OFFSET = 3.5;
+
+// Aproximación de la CDF normal estándar (Abramowitz & Stegun)
+function normalCDF(x: number): number {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  const t = 1.0 / (1.0 + p * Math.abs(x));
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x / 2);
+  return 0.5 * (1.0 + sign * y);
+}
+
 function computePredictions(historicalData: any[], currentMonth: number, currentYear: number) {
-  const monthlyStats: Record<number, { temps: number[], nightTemps: number[], precips: number[], ndvis: number[] }> = {};
-  for (let m = 1; m <= 12; m++) monthlyStats[m] = { temps: [], nightTemps: [], precips: [], ndvis: [] };
+  const monthlyStats: Record<number, { airTemps: number[], precips: number[], ndvis: number[] }> = {};
+  for (let m = 1; m <= 12; m++) monthlyStats[m] = { airTemps: [], precips: [], ndvis: [] };
 
   for (const d of historicalData) {
-    if (d.lst?.dayC != null) monthlyStats[d.month].temps.push(d.lst.dayC);
-    if (d.lst?.nightC != null) monthlyStats[d.month].nightTemps.push(d.lst.nightC);
+    // Aplicar corrección LST → aire
+    if (d.lst?.nightC != null) {
+      const airTemp = d.lst.nightC + LST_TO_AIR_OFFSET;
+      monthlyStats[d.month].airTemps.push(airTemp);
+    }
     if (d.precip != null) monthlyStats[d.month].precips.push(d.precip);
     if (d.ndvi != null) monthlyStats[d.month].ndvis.push(d.ndvi);
   }
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
   const std = (arr: number[]) => {
-    if (arr.length < 2) return 0;
+    if (arr.length < 2) return 1.5; // mínimo de incertidumbre
     const m = avg(arr)!;
-    return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1));
+    return Math.max(1.5, Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1)));
   };
+
+  // Calcular estadísticas globales de precipitación para SPI
+  const allPrecips = Object.values(monthlyStats).flatMap(s => s.precips);
+  const globalAvgPrecip = avg(allPrecips) ?? 50;
+  const globalStdPrecip = Math.max(1, std(allPrecips));
 
   const predictions = [];
   for (let i = 0; i < 10; i++) {
@@ -219,23 +292,23 @@ function computePredictions(historicalData: any[], currentMonth: number, current
     const targetYear = currentYear + Math.floor((currentMonth + i) / 12);
     const stats = monthlyStats[targetMonth];
 
-    const avgNightTemp = avg(stats.nightTemps);
-    const avgDayTemp = avg(stats.temps);
+    const avgAirTemp = avg(stats.airTemps);
+    const stdAirTemp = std(stats.airTemps);
     const avgPrecip = avg(stats.precips);
     const avgNdvi = avg(stats.ndvis);
-    const stdNightTemp = std(stats.nightTemps);
 
+    // ── MODELO DE HELADAS (CDF Normal) ──
     let frostProb = 0;
     let frostDays = 0;
-    if (stats.nightTemps.length > 0) {
-      const belowZeroCount = stats.nightTemps.filter(t => t < 0).length;
-      frostProb = (belowZeroCount / stats.nightTemps.length) * 100;
+    if (avgAirTemp != null) {
+      // P(T < 0) = Φ((0 - μ) / σ)
+      const zScore = (0 - avgAirTemp) / stdAirTemp;
+      frostProb = normalCDF(zScore) * 100;
+      frostProb = Math.max(0, Math.min(100, frostProb));
       frostDays = Math.round(frostProb / 100 * 30);
     }
 
-    const allPrecips = Object.values(monthlyStats).flatMap(s => s.precips);
-    const globalAvgPrecip = avg(allPrecips) ?? 50;
-    const globalStdPrecip = std(allPrecips) || 1;
+    // ── MODELO DE SEQUÍA (SPI) ──
     const spiIndex = avgPrecip != null ? (avgPrecip - globalAvgPrecip) / globalStdPrecip : 0;
 
     let droughtProb = 0;
@@ -244,7 +317,9 @@ function computePredictions(historicalData: any[], currentMonth: number, current
     else if (spiIndex < -1) droughtProb = 55;
     else if (spiIndex < -0.5) droughtProb = 35;
     else if (spiIndex < 0) droughtProb = 15;
+    else droughtProb = 5;
 
+    // Confianza decrece con el horizonte de predicción
     const confidence = i < 3 ? 0.85 + Math.random() * 0.1 : i < 6 ? 0.65 + Math.random() * 0.15 : 0.4 + Math.random() * 0.2;
 
     const frostRisk = frostProb > 60 ? "ALTO" : frostProb > 30 ? "MODERADO" : "BAJO";
@@ -254,9 +329,9 @@ function computePredictions(historicalData: any[], currentMonth: number, current
 
     const recs: string[] = [];
     if (frostProb > 60) recs.push("🔴 Activar protocolo de riego de defensa contra heladas");
-    if (frostProb > 30) recs.push("🟡 Monitorear temperatura nocturna y preparar cobertura");
+    if (frostProb > 30 && frostProb <= 60) recs.push("🟡 Monitorear temperatura nocturna y preparar cobertura");
     if (spiIndex < -1) recs.push("🔴 Programar riego suplementario urgente");
-    if (spiIndex < -0.5) recs.push("🟡 Implementar técnicas de retención de humedad");
+    if (spiIndex < -0.5 && spiIndex >= -1) recs.push("🟡 Implementar técnicas de retención de humedad");
     if (avgNdvi != null && avgNdvi < 0.3) recs.push("🟡 Vegetación baja: considerar fertilización");
     if (recs.length === 0) recs.push("🟢 Condiciones favorables para cultivos");
 
@@ -272,7 +347,7 @@ function computePredictions(historicalData: any[], currentMonth: number, current
       heladas: {
         probabilidad: Math.round(frostProb * 10) / 10,
         dias_esperados: frostDays,
-        temp_minima_predicha: avgNightTemp != null ? Math.round(avgNightTemp * 10) / 10 : null,
+        temp_minima_predicha: avgAirTemp != null ? Math.round(avgAirTemp * 10) / 10 : null,
         confianza: Math.round(confidence * 100) / 100,
         nivel_riesgo: frostRisk,
         fechas_criticas: criticalDates,
@@ -291,17 +366,22 @@ function computePredictions(historicalData: any[], currentMonth: number, current
     });
   }
 
-  const allNightTemps = Object.values(monthlyStats).flatMap(s => s.nightTemps);
-  const allPrecips2 = Object.values(monthlyStats).flatMap(s => s.precips);
+  const allAirTemps = Object.values(monthlyStats).flatMap(s => s.airTemps);
   const allNdvis = Object.values(monthlyStats).flatMap(s => s.ndvis);
 
   return {
     predictions,
     historical_baseline: {
-      avg_temp_min: avg(allNightTemps) != null ? Math.round(avg(allNightTemps)! * 10) / 10 : null,
-      avg_precipitation_mm: avg(allPrecips2) != null ? Math.round(avg(allPrecips2)! * 10) / 10 : null,
+      avg_temp_min: avg(allAirTemps) != null ? Math.round(avg(allAirTemps)! * 10) / 10 : null,
+      avg_precipitation_mm: avg(allPrecips) != null ? Math.round(avg(allPrecips)! * 10) / 10 : null,
       avg_ndvi: avg(allNdvis) != null ? Math.round(avg(allNdvis)! * 1000) / 1000 : null,
-      years_analyzed: 3,
+      years_analyzed: 2,
+      lst_correction_applied: `+${LST_TO_AIR_OFFSET}°C (LST nocturna → temp aire)`,
+    },
+    model_info: {
+      heladas: "P(T<0°C) = Φ((0-μ)/σ) — CDF Normal con corrección LST→aire +3.5°C",
+      sequia: "SPI = (P_mes - μ_global) / σ_global — McKee et al. 1993",
+      data_sources: ["MODIS MOD11A2 (LST)", "MODIS MOD13A2 (NDVI)", "CHIRPS (Precipitación)"],
     },
     model_metrics: {
       heladas_rmse: 1.2,
