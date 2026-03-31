@@ -41,9 +41,9 @@ async function getAccessToken(credentials: any): Promise<string> {
   return (await tokenRes.json()).access_token;
 }
 
-// Use the project-specific compute endpoint
-function getComputeUrl(projectId: string): string {
-  return `https://earthengine.googleapis.com/v1/projects/${projectId}/value:compute`;
+// Always use earthengine-legacy for compute endpoint
+function getComputeUrl(_projectId: string): string {
+  return `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
 }
 
 async function fetchMonthlyData(
