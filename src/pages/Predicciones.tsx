@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Download, Loader2, MapPin, ChevronDown } from "lucide-react";
+import { ArrowLeft, Download, Loader2, MapPin, ChevronDown, Info, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -21,6 +21,13 @@ const REGIONS = [
   { name: "Tacna", lat: -17.6348, lon: -71.3379 },
 ];
 
+const CROPS = [
+  { id: "generico", label: "🌾 Genérico", desc: "Umbral: 0°C" },
+  { id: "papa", label: "🥔 Papa", desc: "Umbral: -1°C (floración)" },
+  { id: "maiz", label: "🌽 Maíz", desc: "Umbral: 0°C (floración)" },
+  { id: "quinua", label: "🌾 Quinua", desc: "Umbral: -2°C (floración)" },
+];
+
 type Prediction = {
   month: string;
   month_name: string;
@@ -30,7 +37,11 @@ type Prediction = {
     temp_minima_predicha: number | null;
     confianza: number;
     nivel_riesgo: string;
+    nivel_confianza?: string;
     fechas_criticas: string[];
+    factores?: string[];
+    umbral_cultivo?: number;
+    etapa_cultivo?: string;
   };
   sequia: {
     spi_index: number;
@@ -39,6 +50,8 @@ type Prediction = {
     deficit_hidrico_mm: number;
     confianza: number;
     nivel_riesgo: string;
+    nivel_confianza?: string;
+    factores?: string[];
   };
   ndvi_predicho: number | null;
   riesgo_total: string;
@@ -48,6 +61,7 @@ type Prediction = {
 type PredictionResult = {
   success: boolean;
   region: string;
+  fallback?: boolean;
   coordinates: { lat: number; lon: number };
   generated_at: string;
   forecast_period: string;
@@ -58,10 +72,25 @@ type PredictionResult = {
     avg_ndvi: number | null;
     years_analyzed: number;
   };
+  model_info?: {
+    version?: string;
+    heladas?: string;
+    sequia?: string;
+    factores?: string[];
+    umbrales_cultivo?: any;
+  };
   model_metrics: {
-    heladas_rmse: number;
-    sequia_rmse: number;
+    heladas_precision?: number;
+    heladas_recall?: number;
+    sequia_precision?: number;
+    sequia_recall?: number;
+    heladas_rmse?: number;
+    sequia_rmse?: number;
     r_squared: number;
+  };
+  crop_config?: {
+    crop_type: string;
+    thresholds: any;
   };
 };
 
@@ -72,12 +101,23 @@ const riskBadge = (risk: string) => {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold border ${cls}`}>{risk}</span>;
 };
 
+const confidenceBadge = (level?: string) => {
+  if (!level) return null;
+  const cls = level === "alto" ? "bg-safe/15 text-safe border-safe"
+    : level === "medio" ? "bg-warning/15 text-warning border-warning"
+    : "bg-danger/15 text-danger border-danger";
+  const label = level === "alto" ? "Alto" : level === "medio" ? "Medio" : "Bajo";
+  return <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold border ${cls}`}>{label}</span>;
+};
+
 const Predicciones = () => {
   const [selectedRegion, setSelectedRegion] = useState(REGIONS[0]);
+  const [selectedCrop, setSelectedCrop] = useState(CROPS[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PredictionResult | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [isFallback, setIsFallback] = useState(false);
@@ -87,10 +127,10 @@ const Predicciones = () => {
     setError(null);
     setStatusMsg("⏳ Cargando datos satelitales...");
     setIsFallback(false);
-    console.log('🔮 Solicitando predicción para:', { region: selectedRegion.name, lat: selectedRegion.lat, lon: selectedRegion.lon });
+    console.log('🔮 Solicitando predicción para:', { region: selectedRegion.name, lat: selectedRegion.lat, lon: selectedRegion.lon, crop: selectedCrop.id });
     try {
       const { data: result, error: err } = await supabase.functions.invoke("earth-engine-predictions", {
-        body: { lat: selectedRegion.lat, lon: selectedRegion.lon, region_name: selectedRegion.name },
+        body: { lat: selectedRegion.lat, lon: selectedRegion.lon, region_name: selectedRegion.name, crop_type: selectedCrop.id },
       });
       console.log('📡 Respuesta de Edge Function:', result);
       if (err) throw new Error(err.message);
@@ -99,7 +139,6 @@ const Predicciones = () => {
       if (result.fallback) {
         setIsFallback(true);
         setStatusMsg("⚠️ Datos de respaldo (demo) — GEE no disponible");
-        console.warn('⚠️ Usando datos de respaldo para demo');
       } else {
         setStatusMsg("✅ Predicción generada con datos satelitales reales");
       }
@@ -125,18 +164,20 @@ const Predicciones = () => {
 
   const exportCSV = () => {
     if (!data) return;
-    const headers = "Region,Mes,Prob_Helada(%),Dias_Helada,Temp_Min(°C),SPI,Prob_Sequia(%),Precip(mm),NDVI,Riesgo,Recomendaciones";
+    const headers = "Region,Mes,Cultivo,Prob_Helada(%),Dias_Helada,Temp_Min(°C),Umbral(°C),Confianza,SPI,Prob_Sequia(%),Precip(mm),NDVI,Riesgo,Factores,Recomendaciones";
     const rows = data.predictions.map(p =>
-      [data.region, p.month, p.heladas.probabilidad, p.heladas.dias_esperados,
-        p.heladas.temp_minima_predicha ?? "", p.sequia.spi_index, p.sequia.probabilidad,
+      [data.region, p.month, selectedCrop.id, p.heladas.probabilidad, p.heladas.dias_esperados,
+        p.heladas.temp_minima_predicha ?? "", p.heladas.umbral_cultivo ?? 0, p.heladas.nivel_confianza ?? "",
+        p.sequia.spi_index, p.sequia.probabilidad,
         p.sequia.precipitacion_esperada_mm ?? "", p.ndvi_predicho ?? "", p.riesgo_total,
+        `"${(p.heladas.factores || []).join("; ")}"`,
         `"${p.recomendaciones.join("; ")}"`].join(",")
     );
     const csv = "\uFEFF" + [headers, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `willay_prediccion_${data.region}_${new Date().toISOString().split("T")[0]}.csv`;
+    a.href = url; a.download = `willay_prediccion_${data.region}_${selectedCrop.id}_${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     setShowExport(false);
   };
@@ -146,7 +187,7 @@ const Predicciones = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `willay_prediccion_${data.region}_${new Date().toISOString().split("T")[0]}.json`;
+    a.href = url; a.download = `willay_prediccion_${data.region}_${selectedCrop.id}_${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     setShowExport(false);
   };
@@ -155,7 +196,8 @@ const Predicciones = () => {
     if (!data) return;
     const tableRows = data.predictions.map(p => `<tr>
       <td>${p.month_name}</td><td>${p.heladas.probabilidad}%</td><td>${p.heladas.dias_esperados}</td>
-      <td>${p.heladas.temp_minima_predicha ?? "-"}°C</td><td>${p.sequia.spi_index}</td>
+      <td>${p.heladas.temp_minima_predicha ?? "-"}°C</td><td>${p.heladas.umbral_cultivo ?? 0}°C</td>
+      <td>${p.heladas.nivel_confianza ?? "-"}</td><td>${p.sequia.spi_index}</td>
       <td>${p.sequia.precipitacion_esperada_mm ?? "-"} mm</td><td>${p.ndvi_predicho ?? "-"}</td>
       <td style="color:${p.riesgo_total === "ALTO" ? "#ef4444" : p.riesgo_total === "MODERADO" ? "#f59e0b" : "#22c55e"};font-weight:bold">${p.riesgo_total}</td>
     </tr>`).join("");
@@ -163,13 +205,12 @@ const Predicciones = () => {
     <style>body{font-family:Arial;margin:20px;font-size:11px}h1{color:#22c55e}
     table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px;text-align:center}
     th{background:#22c55e;color:white}.meta{color:#666;font-size:10px}</style></head><body>
-    <h1>🌾 WILLAY - Predicción de Heladas y Sequías</h1>
-    <p class="meta">Región: ${data.region} | Generado: ${new Date(data.generated_at).toLocaleDateString("es-PE")} | Período: ${data.forecast_period}</p>
-    <table><thead><tr><th>Mes</th><th>Helada %</th><th>Días</th><th>Temp Mín</th><th>SPI</th><th>Precip</th><th>NDVI</th><th>Riesgo</th></tr></thead>
+    <h1>🌾 WILLAY - Predicción de Heladas y Sequías (Modelo v3 Multi-Factor)</h1>
+    <p class="meta">Región: ${data.region} | Cultivo: ${selectedCrop.label} | Generado: ${new Date(data.generated_at).toLocaleDateString("es-PE")} | Período: ${data.forecast_period}</p>
+    <table><thead><tr><th>Mes</th><th>Helada %</th><th>Días</th><th>T.Mín</th><th>Umbral</th><th>Confianza</th><th>SPI</th><th>Precip</th><th>NDVI</th><th>Riesgo</th></tr></thead>
     <tbody>${tableRows}</tbody></table>
-    <h3>Línea Base Histórica (${data.historical_baseline.years_analyzed} años)</h3>
-    <p>Temp mín promedio: ${data.historical_baseline.avg_temp_min}°C | Precipitación promedio: ${data.historical_baseline.avg_precipitation_mm} mm | NDVI promedio: ${data.historical_baseline.avg_ndvi}</p>
-    <p class="meta">Métricas: R² = ${data.model_metrics.r_squared} | RMSE heladas = ${data.model_metrics.heladas_rmse} | RMSE sequía = ${data.model_metrics.sequia_rmse}</p>
+    <h3>Modelo Multi-Factor v3</h3>
+    <p>Factores: Temperatura nocturna + Duración fría + Humedad suelo + Etapa cultivo + NDVI</p>
     </body></html>`;
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
@@ -188,7 +229,7 @@ const Predicciones = () => {
             </Link>
             <div>
               <h1 className="text-xl font-extrabold">🔮 Predicciones 10 Meses</h1>
-              <p className="text-xs font-semibold opacity-80">Datos satelitales reales · Google Earth Engine</p>
+              <p className="text-xs font-semibold opacity-80">Modelo v3 Multi-Factor · Google Earth Engine</p>
             </div>
           </div>
         </div>
@@ -213,6 +254,24 @@ const Predicciones = () => {
           </p>
         </div>
 
+        {/* Crop selector */}
+        <div className="rounded-2xl border-2 border-border bg-card p-4">
+          <label className="text-sm font-extrabold text-foreground mb-2 block">🌱 Tipo de Cultivo</label>
+          <div className="grid grid-cols-2 gap-2">
+            {CROPS.map(c => (
+              <button key={c.id} onClick={() => setSelectedCrop(c)}
+                className={`py-2.5 px-3 rounded-xl text-sm font-bold transition-all text-left ${
+                  selectedCrop.id === c.id
+                    ? "bg-safe text-safe-foreground shadow-md scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}>
+                <span className="block">{c.label}</span>
+                <span className="block text-[10px] opacity-80">{c.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Generate button */}
         <button onClick={fetchPredictions} disabled={loading}
           className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base shadow-lg hover:shadow-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2">
@@ -222,16 +281,14 @@ const Predicciones = () => {
         {loading && (
           <div className="rounded-2xl border-2 border-border bg-card p-4 text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-2" />
-            <p className="text-sm font-bold text-muted-foreground">Analizando 3 años de datos satelitales...</p>
-            <p className="text-xs text-muted-foreground mt-1">MODIS LST + CHIRPS + NDVI (36 meses)</p>
-            <p className="text-xs text-muted-foreground">Esto puede tomar 1-2 minutos</p>
+            <p className="text-sm font-bold text-muted-foreground">Analizando datos satelitales para {selectedCrop.label}...</p>
+            <p className="text-xs text-muted-foreground mt-1">MODIS LST + CHIRPS + NDVI · Modelo Multi-Factor v3</p>
           </div>
         )}
 
         {error && (
           <div className="rounded-2xl border-2 border-danger bg-danger/10 p-4">
             <p className="text-sm font-bold text-danger">❌ {error}</p>
-            <p className="text-xs text-muted-foreground mt-1">Intente de nuevo o seleccione otra región</p>
           </div>
         )}
 
@@ -245,11 +302,11 @@ const Predicciones = () => {
 
         {data && (
           <>
-            {/* Export button */}
+            {/* Export + Methodology links */}
             <div className="flex justify-between items-center">
-              <p className="text-xs text-muted-foreground font-semibold">
-                📅 Generado: {new Date(data.generated_at).toLocaleDateString("es-PE")}
-              </p>
+              <Link to="/metodologia" className="flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+                <Info className="w-3.5 h-3.5" /> Ver Metodología
+              </Link>
               <div className="relative">
                 <button onClick={() => setShowExport(!showExport)}
                   className="flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow">
@@ -284,7 +341,7 @@ const Predicciones = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Bar chart: frost days + precipitation */}
+            {/* Bar chart */}
             <div className="rounded-2xl border-2 border-border bg-card p-4">
               <h3 className="text-base font-extrabold text-foreground mb-3">📊 Días de Helada y Precipitación</h3>
               <ResponsiveContainer width="100%" height={200}>
@@ -300,7 +357,7 @@ const Predicciones = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Data table */}
+            {/* Data table with confidence + factors */}
             <div className="rounded-2xl border-2 border-border bg-card overflow-hidden">
               <h3 className="text-base font-extrabold text-foreground p-4 pb-2">📋 Tabla Detallada</h3>
               <div className="overflow-x-auto">
@@ -309,31 +366,76 @@ const Predicciones = () => {
                     <TableRow>
                       <TableHead className="text-xs font-extrabold">Mes</TableHead>
                       <TableHead className="text-xs font-extrabold">Helada</TableHead>
-                      <TableHead className="text-xs font-extrabold">Días</TableHead>
                       <TableHead className="text-xs font-extrabold">T.Mín</TableHead>
                       <TableHead className="text-xs font-extrabold">SPI</TableHead>
-                      <TableHead className="text-xs font-extrabold">Precip</TableHead>
                       <TableHead className="text-xs font-extrabold">Riesgo</TableHead>
+                      <TableHead className="text-xs font-extrabold">
+                        <Shield className="w-3 h-3 inline" /> Conf.
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.predictions.map(p => (
-                      <TableRow key={p.month}>
+                      <TableRow key={p.month} className="cursor-pointer hover:bg-muted/50" onClick={() => setExpandedMonth(expandedMonth === p.month ? null : p.month)}>
                         <TableCell className="text-xs font-bold">{p.month_name.substring(0, 3)}</TableCell>
                         <TableCell className="text-xs font-bold">{p.heladas.probabilidad}%</TableCell>
-                        <TableCell className="text-xs font-bold">{p.heladas.dias_esperados}</TableCell>
                         <TableCell className="text-xs font-bold">{p.heladas.temp_minima_predicha ?? "-"}°</TableCell>
                         <TableCell className="text-xs font-bold">{p.sequia.spi_index}</TableCell>
-                        <TableCell className="text-xs font-bold">{p.sequia.precipitacion_esperada_mm ?? "-"}</TableCell>
                         <TableCell>{riskBadge(p.riesgo_total)}</TableCell>
+                        <TableCell>{confidenceBadge(p.heladas.nivel_confianza)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
+              <p className="text-[10px] text-muted-foreground p-3 pt-1 text-center">
+                👆 Toca una fila para ver los factores que influyeron
+              </p>
             </div>
 
-            {/* Recommendations per month */}
+            {/* Expanded month factors */}
+            {expandedMonth && (() => {
+              const p = data.predictions.find(pred => pred.month === expandedMonth);
+              if (!p) return null;
+              return (
+                <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 animate-in fade-in">
+                  <h3 className="text-sm font-extrabold text-foreground mb-2">
+                    🔍 {p.month_name} — Factores de la Predicción
+                  </h3>
+                  <div className="space-y-2">
+                    {p.heladas.factores && p.heladas.factores.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-frost mb-1">❄️ Heladas:</p>
+                        {p.heladas.factores.map((f, i) => (
+                          <p key={i} className="text-[11px] text-muted-foreground ml-3">• {f}</p>
+                        ))}
+                        {p.heladas.umbral_cultivo != null && (
+                          <p className="text-[10px] text-muted-foreground ml-3 mt-1">
+                            🌱 Umbral {selectedCrop.label}: {p.heladas.umbral_cultivo}°C | Etapa: {p.heladas.etapa_cultivo}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {p.sequia.factores && p.sequia.factores.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-drought mb-1">🌵 Sequía:</p>
+                        {p.sequia.factores.map((f, i) => (
+                          <p key={i} className="text-[11px] text-muted-foreground ml-3">• {f}</p>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-[11px] text-muted-foreground font-bold">
+                        Nivel de confianza: {confidenceBadge(p.heladas.nivel_confianza)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Recommendations */}
             <div className="rounded-2xl border-2 border-border bg-card p-4">
               <h3 className="text-base font-extrabold text-foreground mb-3">💡 Recomendaciones</h3>
               <div className="space-y-3">
@@ -341,7 +443,11 @@ const Predicciones = () => {
                   <div key={p.month} className={`p-3 rounded-xl border-2 ${
                     p.riesgo_total === "ALTO" ? "border-danger bg-danger/5" : "border-warning bg-warning/5"
                   }`}>
-                    <p className="text-sm font-extrabold text-foreground">{p.month_name} {riskBadge(p.riesgo_total)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-extrabold text-foreground">{p.month_name}</p>
+                      {riskBadge(p.riesgo_total)}
+                      {confidenceBadge(p.heladas.nivel_confianza)}
+                    </div>
                     <ul className="mt-1 space-y-0.5">
                       {p.recomendaciones.map((r, i) => (
                         <li key={i} className="text-xs font-semibold text-muted-foreground">{r}</li>
@@ -369,10 +475,23 @@ const Predicciones = () => {
                   <p className="text-[10px] font-bold text-muted-foreground">NDVI Prom</p>
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                R² = {data.model_metrics.r_squared} | RMSE heladas = {data.model_metrics.heladas_rmse}°C | RMSE sequía = {data.model_metrics.sequia_rmse}
-              </p>
+              {data.model_info && (
+                <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                  Modelo: {data.model_info.version} | {data.model_info.data_sources?.join(", ")}
+                </p>
+              )}
             </div>
+
+            {/* Link to methodology */}
+            <Link to="/metodologia">
+              <div className="rounded-2xl border-2 border-dashed border-primary/30 p-4 flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors">
+                <Info className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="font-bold text-sm text-foreground">📐 Metodología y Métricas</p>
+                  <p className="text-xs text-muted-foreground">Fórmulas, fuentes de datos y limitaciones</p>
+                </div>
+              </div>
+            </Link>
           </>
         )}
       </main>
