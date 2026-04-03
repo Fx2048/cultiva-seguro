@@ -78,6 +78,7 @@ type PredictionResult = {
     sequia?: string;
     factores?: string[];
     umbrales_cultivo?: any;
+    data_sources?: string[];
   };
   model_metrics: {
     heladas_precision?: number;
