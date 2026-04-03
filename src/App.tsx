@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import MisDatos from "./pages/MisDatos";
 import Predicciones from "./pages/Predicciones";
+import Metodologia from "./pages/Metodologia";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
