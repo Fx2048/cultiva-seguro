@@ -129,7 +129,7 @@ const Predicciones = () => {
   const fetchPredictions = async () => {
     setLoading(true);
     setError(null);
-    setStatusMsg("⏳ Cargando datos satelitales...");
+    setStatusMsg(`⏳ ${t("pred.loading_satellite")}`);
     setIsFallback(false);
     console.log('🔮 Solicitando predicción para:', { region: selectedRegion.name, lat: selectedRegion.lat, lon: selectedRegion.lon, crop: selectedCrop.id });
     try {
@@ -142,9 +142,9 @@ const Predicciones = () => {
       setData(result as PredictionResult);
       if (result.fallback) {
         setIsFallback(true);
-        setStatusMsg("⚠️ Datos de respaldo (demo) — GEE no disponible");
+        setStatusMsg(`⚠️ ${t("pred.fallback")}`);
       } else {
-        setStatusMsg("✅ Predicción generada con datos satelitales reales");
+        setStatusMsg(`✅ ${t("pred.generated_ok")}`);
       }
     } catch (e: any) {
       console.error('❌ Error en predicción:', e);
@@ -227,14 +227,17 @@ const Predicciones = () => {
     <div className="min-h-screen bg-background pb-8">
       <header className="bg-primary text-primary-foreground p-5 rounded-b-3xl shadow-lg">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="p-2 rounded-xl bg-primary-foreground/20 hover:bg-primary-foreground/30">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="text-xl font-extrabold">🔮 Predicciones 10 Meses</h1>
-              <p className="text-xs font-semibold opacity-80">Modelo v3 Multi-Factor · Google Earth Engine</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="p-2 rounded-xl bg-primary-foreground/20 hover:bg-primary-foreground/30">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h1 className="text-xl font-extrabold">🔮 {t("pred.title")}</h1>
+                <p className="text-xs font-semibold opacity-80">{t("pred.subtitle")}</p>
+              </div>
             </div>
+            <LanguageToggle />
           </div>
         </div>
       </header>
