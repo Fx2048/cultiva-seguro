@@ -23,6 +23,7 @@ const PAGE_SIZE = 25;
 const MisDatos = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const { isOnline, justReconnected } = useConnectivity();
   const [sensors, setSensors] = useState<SensorReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
