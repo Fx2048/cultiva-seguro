@@ -9,12 +9,15 @@ import NDVIMap from "@/components/NDVIMap";
 import OnboardingTutorial from "@/components/OnboardingTutorial";
 import ConnectivityBadge from "@/components/ConnectivityBadge";
 import SmsAlertConfig from "@/components/SmsAlertConfig";
+import LanguageToggle from "@/components/LanguageToggle";
 import { useWeather } from "@/hooks/useWeather";
 import { useConnectivity } from "@/hooks/useConnectivity";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const Index = () => {
   const { weather, loading, error } = useWeather();
   const { isOnline, justReconnected } = useConnectivity();
+  const { t } = useLanguage();
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("es", {
@@ -33,16 +36,17 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight">
-                🌾 AgroAlerta
+                🌾 {t("app.name")}
               </h1>
               <p className="text-sm font-semibold opacity-90 capitalize">{dateStr}</p>
             </div>
             <div className="flex flex-col items-end gap-1.5">
+              <LanguageToggle />
               <ConnectivityBadge isOnline={isOnline} justReconnected={justReconnected} />
               <div className="flex items-center gap-1 bg-primary-foreground/20 rounded-full px-3 py-1.5">
                 <MapPin className="w-4 h-4" />
                 <span className="text-sm font-bold">
-                  {loading ? "..." : (weather?.locationName ?? "Mi Zona")}
+                  {loading ? "..." : (weather?.locationName ?? t("header.location"))}
                 </span>
               </div>
             </div>
@@ -63,7 +67,7 @@ const Index = () => {
           </div>
           {weather && (
             <p className="text-center text-sm font-semibold opacity-80 mt-1">
-              📍 Temperatura actual en tu zona
+              📍 {t("header.currentTemp")}
             </p>
           )}
         </div>
@@ -74,13 +78,13 @@ const Index = () => {
         {error && !weather ? (
           <div className="rounded-2xl p-4 bg-muted border-2 border-border text-center">
             <p className="text-base font-bold text-muted-foreground">⚠️ {error}</p>
-            <p className="text-sm text-muted-foreground mt-1">Verifique su conexión a internet</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("forecast.error_connection")}</p>
           </div>
         ) : (
           <AlertBanner
             level={weather?.alertLevel ?? "warning"}
             type="helada"
-            message={weather?.alertMessage ?? "Cargando datos del clima de tu zona..."}
+            message={weather?.alertMessage ?? t("forecast.loading")}
           />
         )}
 
@@ -111,8 +115,8 @@ const Index = () => {
           <div className="rounded-2xl border-2 border-dashed border-frost/30 p-4 flex items-center justify-center gap-3 hover:bg-frost/5 transition-colors cursor-pointer">
             <Thermometer className="w-6 h-6 text-frost" />
             <div>
-              <p className="font-bold text-sm">🔮 Predicciones 10 Meses</p>
-              <p className="text-xs text-muted-foreground">Heladas y sequías con datos satelitales</p>
+              <p className="font-bold text-sm">🔮 {t("nav.predictions")}</p>
+              <p className="text-xs text-muted-foreground">{t("nav.predictions_desc")}</p>
             </div>
           </div>
         </Link>
@@ -122,8 +126,8 @@ const Index = () => {
           <div className="rounded-2xl border-2 border-dashed border-primary/30 p-4 flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors cursor-pointer">
             <Database className="w-6 h-6 text-primary" />
             <div>
-              <p className="font-bold text-sm">📊 Mis Datos</p>
-              <p className="text-xs text-muted-foreground">Historial, exportar y sincronizar</p>
+              <p className="font-bold text-sm">📊 {t("nav.my_data")}</p>
+              <p className="text-xs text-muted-foreground">{t("nav.my_data_desc")}</p>
             </div>
           </div>
         </Link>

@@ -1,39 +1,20 @@
 import { Sprout, Droplets, ShieldCheck, CloudSnow } from "lucide-react";
-
-interface Tip {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
-const tips: Tip[] = [
-  {
-    icon: <CloudSnow className="w-10 h-10 text-frost" />,
-    title: "Helada",
-    description: "Cubra sus plantas con plástico o paja antes de la noche fría.",
-  },
-  {
-    icon: <Droplets className="w-10 h-10 text-primary" />,
-    title: "Riego",
-    description: "Riegue temprano en la mañana para proteger las raíces del frío.",
-  },
-  {
-    icon: <Sprout className="w-10 h-10 text-safe" />,
-    title: "Cosecha",
-    description: "Si hay riesgo, coseche lo que pueda antes de la helada.",
-  },
-  {
-    icon: <ShieldCheck className="w-10 h-10 text-warning" />,
-    title: "Preparación",
-    description: "Tenga listas lonas y materiales para cubrir sus cultivos.",
-  },
-];
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const QuickTips = () => {
+  const { t } = useLanguage();
+
+  const tips = [
+    { icon: <CloudSnow className="w-10 h-10 text-frost" />, title: t("tips.frost.title"), description: t("tips.frost.desc") },
+    { icon: <Droplets className="w-10 h-10 text-primary" />, title: t("tips.irrigation.title"), description: t("tips.irrigation.desc") },
+    { icon: <Sprout className="w-10 h-10 text-safe" />, title: t("tips.harvest.title"), description: t("tips.harvest.desc") },
+    { icon: <ShieldCheck className="w-10 h-10 text-warning" />, title: t("tips.preparation.title"), description: t("tips.preparation.desc") },
+  ];
+
   return (
     <div>
       <h2 className="text-xl font-extrabold text-foreground mb-4">
-        💡 Consejos Rápidos
+        💡 {t("tips.title")}
       </h2>
       <div className="grid grid-cols-2 gap-3">
         {tips.map((tip) => (
