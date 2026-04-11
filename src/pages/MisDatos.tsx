@@ -15,10 +15,13 @@ import { exportSensorsCSV, exportSensorsJSON, exportSensorsPDF, exportAlertsCSV,
 import { syncToCloud, pullFromCloud, getTimeSinceSync, getStorageUsage } from "@/lib/syncManager";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import ConnectivityBadge from "@/components/ConnectivityBadge";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const PAGE_SIZE = 25;
 
 const MisDatos = () => {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const { isOnline, justReconnected } = useConnectivity();
   const [sensors, setSensors] = useState<SensorReading[]>([]);
@@ -167,11 +170,12 @@ const MisDatos = () => {
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl font-extrabold">📊 Mis Datos</h1>
+              <h1 className="text-xl font-extrabold">📊 {t("data.title")}</h1>
               <p className="text-xs opacity-80">{getTimeSinceSync()}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <ConnectivityBadge isOnline={isOnline} justReconnected={justReconnected} />
             <Button
               variant="ghost"
@@ -193,14 +197,14 @@ const MisDatos = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-sm font-bold">
                 <HardDrive className="w-4 h-4" />
-                Almacenamiento Local
+                {t("data.local_storage")}
               </div>
               <span className="text-xs text-muted-foreground">{storageUsage.usedKB} KB / 5 MB</span>
             </div>
             <Progress value={storageUsage.percentUsed} className="h-2" />
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Database className="w-3 h-3" /> {sensorCount} registros en IndexedDB
+                <Database className="w-3 h-3" /> {sensorCount} {t("data.records")}
               </span>
               {storageUsage.percentUsed > 80 && (
                 <Badge variant="destructive" className="text-xs">⚠️ {storageUsage.percentUsed}%</Badge>
@@ -216,7 +220,7 @@ const MisDatos = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar zona, alerta, temp..."
+                  placeholder={t("data.search")}
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                   className="pl-9 h-9"
@@ -244,10 +248,10 @@ const MisDatos = () => {
         {/* Action buttons */}
         <div className="flex gap-2">
           <Button onClick={() => setExportOpen(true)} className="flex-1 gap-2 font-bold">
-            <Download className="w-4 h-4" /> Exportar ({filtered.length})
+            <Download className="w-4 h-4" /> {t("data.export")} ({filtered.length})
           </Button>
           <Button variant="outline" onClick={handleCleanup} className="gap-2">
-            <Trash2 className="w-4 h-4" /> Limpiar
+            <Trash2 className="w-4 h-4" /> {t("data.cleanup")}
           </Button>
         </div>
 
@@ -255,18 +259,18 @@ const MisDatos = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
-              <span>Lecturas de Sensores</span>
-              <span className="text-xs font-normal text-muted-foreground">{filtered.length} registros</span>
+              <span>{t("data.sensor_readings")}</span>
+              <span className="text-xs font-normal text-muted-foreground">{filtered.length}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Cargando datos...</div>
+              <div className="p-8 text-center text-muted-foreground">...</div>
             ) : paged.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Database className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="font-bold">Sin datos locales</p>
-                <p className="text-xs mt-1">Los datos se guardarán automáticamente al usar la app</p>
+                <p className="font-bold">{t("data.no_data")}</p>
+                <p className="text-xs mt-1">{t("data.no_data_desc")}</p>
               </div>
             ) : (
               <>
@@ -274,12 +278,12 @@ const MisDatos = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs">Fecha</TableHead>
-                        <TableHead className="text-xs">Zona</TableHead>
-                        <TableHead className="text-xs">Temp</TableHead>
-                        <TableHead className="text-xs">Hum.</TableHead>
-                        <TableHead className="text-xs">Suelo</TableHead>
-                        <TableHead className="text-xs">Alerta</TableHead>
+                        <TableHead className="text-xs">{t("data.date")}</TableHead>
+                        <TableHead className="text-xs">{t("data.zone")}</TableHead>
+                        <TableHead className="text-xs">{t("data.temp")}</TableHead>
+                        <TableHead className="text-xs">{t("data.humidity")}</TableHead>
+                        <TableHead className="text-xs">{t("data.soil")}</TableHead>
+                        <TableHead className="text-xs">{t("data.alert")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -300,11 +304,11 @@ const MisDatos = () => {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between p-3 border-t">
                     <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                      ← Anterior
+                      ← {t("data.previous")}
                     </Button>
                     <span className="text-xs text-muted-foreground">{page + 1} / {totalPages}</span>
                     <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
-                      Siguiente →
+                      {t("data.next")} →
                     </Button>
                   </div>
                 )}
@@ -318,22 +322,22 @@ const MisDatos = () => {
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>📥 Exportar Datos</DialogTitle>
-            <DialogDescription>Selecciona el formato y tipo de datos a exportar</DialogDescription>
+            <DialogTitle>📥 {t("data.export_title")}</DialogTitle>
+            <DialogDescription>{t("data.export_desc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-bold mb-1 block">Tipo de datos</label>
+              <label className="text-sm font-bold mb-1 block">{t("data.data_type")}</label>
               <Select value={exportType} onValueChange={(v) => setExportType(v as ExportDataType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sensors">📡 Lecturas de Sensores</SelectItem>
-                  <SelectItem value="alerts">📨 Alertas SMS</SelectItem>
+                  <SelectItem value="sensors">📡 {t("data.sensors")}</SelectItem>
+                  <SelectItem value="alerts">📨 {t("data.sms_alerts")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-sm font-bold mb-1 block">Formato</label>
+              <label className="text-sm font-bold mb-1 block">{t("data.format")}</label>
               <div className="flex gap-2">
                 {(["csv", "json", ...(exportType === "sensors" ? ["pdf" as const] : [])] as ExportFormat[]).map((f) => (
                   <Button
@@ -355,9 +359,9 @@ const MisDatos = () => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setExportOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setExportOpen(false)}>{t("data.cancel")}</Button>
             <Button onClick={handleExport} disabled={exporting} className="gap-2 font-bold">
-              <Download className="w-4 h-4" /> Descargar
+              <Download className="w-4 h-4" /> {t("data.download")}
             </Button>
           </DialogFooter>
         </DialogContent>
