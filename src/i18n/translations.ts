@@ -1,0 +1,183 @@
+export type Locale = "es" | "qu";
+
+const translations = {
+  // Header / Global
+  "app.name": { es: "AgroAlerta", qu: "AgroWillay" },
+  "app.subtitle": { es: "Sistema de Alerta Temprana", qu: "Ñawpaq Willakuy Sistema" },
+  "header.location": { es: "Mi Zona", qu: "Llaqtay" },
+  "header.currentTemp": { es: "Temperatura actual en tu zona", qu: "Kunan q'uñi kay llaqtaykipi" },
+
+  // Alerts
+  "alert.frost": { es: "Helada", qu: "Chiri p'unchaw" },
+  "alert.drought": { es: "Sequía", qu: "Ch'aki mit'a" },
+  "alert.safe": { es: "SIN RIESGO", qu: "MANA MANCHAY" },
+  "alert.warning": { es: "¡PRECAUCIÓN!", qu: "¡WAKCHA KAY!" },
+  "alert.danger": { es: "¡PELIGRO!", qu: "¡SASACHAKUY!" },
+  "alert.frost_label": { es: "HELADA", qu: "CHIRI" },
+  "alert.drought_label": { es: "SEQUÍA", qu: "CH'AKI" },
+
+  // Quick Tips
+  "tips.title": { es: "Consejos Rápidos", qu: "Usqhay Yuyaychakuykuna" },
+  "tips.frost.title": { es: "Helada", qu: "Chiri" },
+  "tips.frost.desc": { es: "Cubra sus plantas con plástico o paja antes de la noche fría.", qu: "Chakraykita pakay plastikuwan utaq ichhuwan chiri tutamanta." },
+  "tips.irrigation.title": { es: "Riego", qu: "Unuchay" },
+  "tips.irrigation.desc": { es: "Riegue temprano en la mañana para proteger las raíces del frío.", qu: "Tutamanta unuchay saphinkunata chiriqmanta waqaychanaykipaq." },
+  "tips.harvest.title": { es: "Cosecha", qu: "Pallana" },
+  "tips.harvest.desc": { es: "Si hay riesgo, coseche lo que pueda antes de la helada.", qu: "Manchay kaptinqa, pallay atisqaykita chiri p'unchaymanta ñawpaqta." },
+  "tips.preparation.title": { es: "Preparación", qu: "Wakichiy" },
+  "tips.preparation.desc": { es: "Tenga listas lonas y materiales para cubrir sus cultivos.", qu: "Lonakunata wakichiy chakraykita pakanaykipaq." },
+
+  // Recommendations
+  "rec.irrigate_now": { es: "Riega ahora", qu: "Kunan unuchay" },
+  "rec.cover_crops": { es: "Cubre tus cultivos", qu: "Chakraykita pakay" },
+  "rec.monitor_tonight": { es: "Monitorea esta noche", qu: "Kay tutata qhaway" },
+  "rec.favorable": { es: "Condiciones favorables", qu: "Allin kawsay" },
+
+  // Weather / Forecast
+  "forecast.title": { es: "Pronóstico 7 Días", qu: "7 P'unchaw Willakuy" },
+  "forecast.loading": { es: "Cargando datos del clima de tu zona...", qu: "Pacha willakuykunata qhawachkan..." },
+  "forecast.error_connection": { es: "Verifique su conexión a internet", qu: "Internet t'inkiyta qhaway" },
+
+  // Predictions page
+  "pred.title": { es: "Predicciones 10 Meses", qu: "10 Killa Willakuy" },
+  "pred.subtitle": { es: "Modelo v3 Multi-Factor · Google Earth Engine", qu: "Modelo v3 · Google Earth Engine" },
+  "pred.select_region": { es: "Selecciona Región", qu: "Suyuta akllay" },
+  "pred.crop_type": { es: "Tipo de Cultivo", qu: "Tarpuy laya" },
+  "pred.generate": { es: "Generar Predicción", qu: "Willakuyta ruway" },
+  "pred.loading_satellite": { es: "Cargando datos satelitales...", qu: "Satelite willakuykunata qhawachkan..." },
+  "pred.consulting": { es: "Consultando Earth Engine...", qu: "Earth Engine-ta tapuchkan..." },
+  "pred.analyzing": { es: "Analizando datos satelitales para", qu: "Satelite willakuykunata t'aqachkan" },
+  "pred.generated_ok": { es: "Predicción generada con datos satelitales reales", qu: "Willakuy ruwasqa chiqap satelite willakuykunawan" },
+  "pred.fallback": { es: "Datos de respaldo (demo) — GEE no disponible", qu: "Waqaychay willakuykuna (demo) — GEE mana kanchu" },
+  "pred.timeline": { es: "Línea de Tiempo - Riesgos", qu: "Pacha Siq'i - Manchaykuna" },
+  "pred.frost_days_precip": { es: "Días de Helada y Precipitación", qu: "Chiri P'unchawkuna Parawan" },
+  "pred.detailed_table": { es: "Tabla Detallada", qu: "Tukuy Willakuy" },
+  "pred.month": { es: "Mes", qu: "Killa" },
+  "pred.frost": { es: "Helada", qu: "Chiri" },
+  "pred.temp_min": { es: "T.Mín", qu: "T.Pisi" },
+  "pred.risk": { es: "Riesgo", qu: "Manchay" },
+  "pred.confidence": { es: "Conf.", qu: "Iñiy" },
+  "pred.tap_row": { es: "Toca una fila para ver los factores que influyeron", qu: "Huk siq'ita ñit'iy factorkunata qhawanaykipaq" },
+  "pred.factors_title": { es: "Factores de la Predicción", qu: "Willakuy Factorkuna" },
+  "pred.frost_factors": { es: "Heladas:", qu: "Chirikuna:" },
+  "pred.drought_factors": { es: "Sequía:", qu: "Ch'akikuna:" },
+  "pred.confidence_level": { es: "Nivel de confianza:", qu: "Iñiy patma:" },
+  "pred.recommendations": { es: "Recomendaciones", qu: "Yuyaychakuykuna" },
+  "pred.baseline": { es: "Línea Base Histórica", qu: "Ñawpaq Pacha Siq'i" },
+  "pred.years": { es: "años", qu: "watakuna" },
+  "pred.temp_min_avg": { es: "Temp Mín Prom", qu: "T.Pisi Chawpi" },
+  "pred.precip_mm": { es: "Precip mm", qu: "Para mm" },
+  "pred.ndvi_avg": { es: "NDVI Prom", qu: "NDVI Chawpi" },
+  "pred.methodology_link": { es: "Metodología y Métricas", qu: "Ruwaykuna Tupukunawan" },
+  "pred.methodology_desc": { es: "Fórmulas, fuentes de datos y limitaciones", qu: "Formulakuna, willakuy pukyukuna, mana atisqakuna" },
+  "pred.see_methodology": { es: "Ver Metodología", qu: "Ruwayta qhaway" },
+  "pred.export": { es: "Exportar", qu: "Lluqsichiy" },
+
+  // Confidence badges
+  "confidence.high": { es: "Alto", qu: "Hatun" },
+  "confidence.medium": { es: "Medio", qu: "Chawpi" },
+  "confidence.low": { es: "Bajo", qu: "Pisi" },
+
+  // Risk levels
+  "risk.high": { es: "ALTO", qu: "HATUN" },
+  "risk.moderate": { es: "MODERADO", qu: "CHAWPI" },
+  "risk.low": { es: "BAJO", qu: "PISI" },
+
+  // Navigation links
+  "nav.predictions": { es: "Predicciones 10 Meses", qu: "10 Killa Willakuy" },
+  "nav.predictions_desc": { es: "Heladas y sequías con datos satelitales", qu: "Chirikuna ch'akikunawan satelite willakuykunawan" },
+  "nav.my_data": { es: "Mis Datos", qu: "Willakuyniykuna" },
+  "nav.my_data_desc": { es: "Historial, exportar y sincronizar", qu: "Ñawpaq willakuykuna, lluqsichiy, t'inkiy" },
+
+  // Onboarding
+  "onboarding.welcome": { es: "¡Bienvenido!", qu: "¡Allin hamusqa!" },
+  "onboarding.welcome_desc": { es: "AgroAlerta te ayuda a proteger tus cultivos del frío y la sequía.", qu: "AgroWillay yanapasunki chakraykita chiriqmanta ch'akiqmantawan waqaychanaykipaq." },
+  "onboarding.alerts": { es: "Alertas", qu: "Willaykuna" },
+  "onboarding.alerts_desc": { es: "Te avisamos cuando el clima puede dañar tus plantas.", qu: "Willasqayki pacha mana allin kaptinqa tarpuyniykipaq." },
+  "onboarding.forecast": { es: "Pronóstico", qu: "Willakuy" },
+  "onboarding.forecast_desc": { es: "Mira el clima de los próximos 7 días con colores fáciles.", qu: "7 p'unchaw pacha willakuyta qhaway llimp'ikunawan." },
+  "onboarding.map": { es: "Mapa", qu: "Allpa Siq'i" },
+  "onboarding.map_desc": { es: "Toca el mapa para ver el riesgo en cada zona del Perú.", qu: "Allpa siq'ita ñit'iy Perú suyukunapi manchayta qhawanaykipaq." },
+  "onboarding.tips": { es: "Consejos", qu: "Yuyaychakuykuna" },
+  "onboarding.tips_desc": { es: "Aprende a cuidar tus cultivos con tips sencillos.", qu: "Yachay chakraykita qawayta k'acha yuyaychakuykunawan." },
+  "onboarding.skip": { es: "Saltar", qu: "Pasay" },
+  "onboarding.next": { es: "Siguiente", qu: "Qhipaq" },
+  "onboarding.start": { es: "¡Empezar!", qu: "¡Qallariy!" },
+  "onboarding.back": { es: "Atrás", qu: "Qhipaman" },
+
+  // Mis Datos page
+  "data.title": { es: "Mis Datos", qu: "Willakuyniykuna" },
+  "data.local_storage": { es: "Almacenamiento Local", qu: "Kay Kiti Waqaychana" },
+  "data.records": { es: "registros en IndexedDB", qu: "qillqakuna IndexedDB-pi" },
+  "data.synced": { es: "Sincronizado", qu: "T'inkisqa" },
+  "data.downloaded": { es: "Descargados", qu: "Urayachisqa" },
+  "data.uploaded": { es: "Subidos", qu: "Wichayachisqa" },
+  "data.no_connection": { es: "Sin conexión", qu: "Mana t'inkiy" },
+  "data.offline_msg": { es: "Los datos se sincronizarán al reconectar", qu: "Willakuykuna t'inkisqa kanqa watiqmanta t'inkikuptinqa" },
+  "data.search": { es: "Buscar zona, alerta, temp...", qu: "Maskay suyu, willay, q'uñi..." },
+  "data.export": { es: "Exportar", qu: "Lluqsichiy" },
+  "data.cleanup": { es: "Limpiar", qu: "Pichay" },
+  "data.sensor_readings": { es: "Lecturas de Sensores", qu: "Sensor Ñawichakuykuna" },
+  "data.no_data": { es: "Sin datos locales", qu: "Mana willakuykuna kanchu" },
+  "data.no_data_desc": { es: "Los datos se guardarán automáticamente al usar la app", qu: "Willakuykuna waqaychasqa kanqa app-ta llamk'achkaptiki" },
+  "data.export_title": { es: "Exportar Datos", qu: "Willakuykunata Lluqsichiy" },
+  "data.export_desc": { es: "Selecciona el formato y tipo de datos a exportar", qu: "Formátuta akllay lluqsichinaykipaq" },
+  "data.data_type": { es: "Tipo de datos", qu: "Willakuy laya" },
+  "data.sensors": { es: "Lecturas de Sensores", qu: "Sensor Ñawichakuykuna" },
+  "data.sms_alerts": { es: "Alertas SMS", qu: "SMS Willaykuna" },
+  "data.format": { es: "Formato", qu: "Formato" },
+  "data.cancel": { es: "Cancelar", qu: "Ama hina" },
+  "data.download": { es: "Descargar", qu: "Urayachiy" },
+  "data.exporting": { es: "Exportando...", qu: "Lluqsichichkan..." },
+  "data.exported_ok": { es: "Datos exportados", qu: "Willakuykuna lluqsichisqa" },
+  "data.cleanup_confirm": { es: "¿Eliminar datos de más de 6 meses? Se mantendrán los últimos 1000 registros.", qu: "¿6 killaqmanta aswan ñawpaq willakuykunata pichay? Qhipa 1000 qillqakuna waqaychasqa kanqa." },
+  "data.cleanup_done": { es: "Limpieza completada", qu: "Pichay tukusqa" },
+  "data.previous": { es: "Anterior", qu: "Ñawpaq" },
+  "data.next": { es: "Siguiente", qu: "Qhipaq" },
+  "data.date": { es: "Fecha", qu: "P'unchaw" },
+  "data.zone": { es: "Zona", qu: "Suyu" },
+  "data.temp": { es: "Temp", qu: "Q'uñi" },
+  "data.humidity": { es: "Hum.", qu: "Juq'u" },
+  "data.soil": { es: "Suelo", qu: "Allpa" },
+  "data.alert": { es: "Alerta", qu: "Willay" },
+  "data.all": { es: "Todas", qu: "Llapan" },
+
+  // Metodologia page
+  "metodo.title": { es: "Metodología WILLAY", qu: "WILLAY Ruwaykuna" },
+  "metodo.subtitle": { es: "Transparencia científica · Modelo v3", qu: "Yachay sut'inchay · Modelo v3" },
+  "metodo.frost_model": { es: "Modelo de Heladas (Multi-Factor)", qu: "Chiri Modelo (Achka-Factor)" },
+  "metodo.main_formula": { es: "Fórmula Principal:", qu: "Hatun Fórmula:" },
+  "metodo.aggravating": { es: "Factores Agravantes:", qu: "Astawan Manchay Factorkuna:" },
+  "metodo.duration": { es: "Duración:", qu: "Unay:" },
+  "metodo.sensitive_stage": { es: "Etapa sensible:", qu: "Llamp'u mit'a:" },
+  "metodo.low_soil_moisture": { es: "Humedad suelo baja:", qu: "Allpa juq'u pisi:" },
+  "metodo.weak_vegetation": { es: "Vegetación débil:", qu: "Qura llamp'u:" },
+  "metodo.crop_thresholds": { es: "Umbrales por Cultivo", qu: "Tarpuy Patmakuna" },
+  "metodo.flowering": { es: "Floración", qu: "T'ikay" },
+  "metodo.vegetative": { es: "Vegetativo", qu: "Q'umir" },
+  "metodo.tuberization": { es: "Tuberc.", qu: "Papa ruway" },
+  "metodo.drought_model": { es: "Modelo de Sequía (SPI)", qu: "Ch'aki Modelo (SPI)" },
+  "metodo.formula": { es: "Fórmula:", qu: "Fórmula:" },
+  "metodo.classification": { es: "Clasificación:", qu: "T'aqay:" },
+  "metodo.data_sources": { es: "Fuentes de Datos", qu: "Willakuy Pukyukuna" },
+  "metodo.precision": { es: "Precisión del Modelo", qu: "Modelo Chiqap Kay" },
+  "metodo.precision_label": { es: "Precisión", qu: "Chiqap kay" },
+  "metodo.recall_label": { es: "Recall (sensibilidad)", qu: "Recall (llamp'u kay)" },
+  "metodo.what_means": { es: "¿Qué significa?", qu: "¿Ima niyta munan?" },
+  "metodo.limitations": { es: "Limitaciones", qu: "Mana Atisqakuna" },
+  "metodo.recommendation": { es: "Recomendación", qu: "Yuyaychakuy" },
+  "metodo.recommendation_text": {
+    es: "Para máxima precisión, combina WILLAY con observación directa de tus cultivos y, si es posible, instala un sensor IoT local. Ningún sistema es 100% preciso, pero WILLAY maximiza tu capacidad de preparación.",
+    qu: "Aswan chiqap kananpaq, WILLAY-ta tarpuyniykiwan kuska llamk'achiy, atispaqa huk sensor IoT-ta churay. Mana huk sistemapas 100% chiqapchu, ichaqa WILLAY yanapasunki wakichikunaykipaq."
+  },
+  "metodo.confidence_levels": { es: "Niveles de Confianza:", qu: "Iñiy Patmakuna:" },
+
+  // Connectivity
+  "connectivity.online": { es: "En línea", qu: "T'inkisqa" },
+  "connectivity.offline": { es: "Sin conexión", qu: "Mana t'inkiy" },
+  "connectivity.reconnected": { es: "Reconectado", qu: "Watiqmanta t'inkisqa" },
+} as const;
+
+export type TranslationKey = keyof typeof translations;
+
+export default translations;
