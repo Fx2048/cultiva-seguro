@@ -245,7 +245,7 @@ const Predicciones = () => {
       <main className="max-w-lg mx-auto px-4 mt-6 space-y-5">
         {/* Region selector */}
         <div className="rounded-2xl border-2 border-border bg-card p-4">
-          <label className="text-sm font-extrabold text-foreground mb-2 block">📍 Selecciona Región</label>
+          <label className="text-sm font-extrabold text-foreground mb-2 block">📍 {t("pred.select_region")}</label>
           <div className="grid grid-cols-2 gap-2">
             {REGIONS.map(r => (
               <button key={r.name} onClick={() => setSelectedRegion(r)}
@@ -263,7 +263,7 @@ const Predicciones = () => {
 
         {/* Crop selector */}
         <div className="rounded-2xl border-2 border-border bg-card p-4">
-          <label className="text-sm font-extrabold text-foreground mb-2 block">🌱 Tipo de Cultivo</label>
+          <label className="text-sm font-extrabold text-foreground mb-2 block">🌱 {t("pred.crop_type")}</label>
           <div className="grid grid-cols-2 gap-2">
             {CROPS.map(c => (
               <button key={c.id} onClick={() => setSelectedCrop(c)}
@@ -282,13 +282,13 @@ const Predicciones = () => {
         {/* Generate button */}
         <button onClick={fetchPredictions} disabled={loading}
           className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base shadow-lg hover:shadow-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2">
-          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Consultando Earth Engine...</> : "🛰️ Generar Predicción"}
+          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> {t("pred.consulting")}</> : `🛰️ ${t("pred.generate")}`}
         </button>
 
         {loading && (
           <div className="rounded-2xl border-2 border-border bg-card p-4 text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-2" />
-            <p className="text-sm font-bold text-muted-foreground">Analizando datos satelitales para {selectedCrop.label}...</p>
+            <p className="text-sm font-bold text-muted-foreground">{t("pred.analyzing")} {selectedCrop.label}...</p>
             <p className="text-xs text-muted-foreground mt-1">MODIS LST + CHIRPS + NDVI · Modelo Multi-Factor v3</p>
           </div>
         )}
@@ -312,12 +312,12 @@ const Predicciones = () => {
             {/* Export + Methodology links */}
             <div className="flex justify-between items-center">
               <Link to="/metodologia" className="flex items-center gap-1 text-xs font-bold text-primary hover:underline">
-                <Info className="w-3.5 h-3.5" /> Ver Metodología
+                <Info className="w-3.5 h-3.5" /> {t("pred.see_methodology")}
               </Link>
               <div className="relative">
                 <button onClick={() => setShowExport(!showExport)}
                   className="flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow">
-                  <Download className="w-4 h-4" /> Exportar <ChevronDown className="w-3 h-3" />
+                  <Download className="w-4 h-4" /> {t("pred.export")} <ChevronDown className="w-3 h-3" />
                 </button>
                 {showExport && (
                   <div className="absolute right-0 top-full mt-1 bg-card border-2 border-border rounded-xl shadow-lg z-10 overflow-hidden">
@@ -331,7 +331,7 @@ const Predicciones = () => {
 
             {/* Timeline chart */}
             <div className="rounded-2xl border-2 border-border bg-card p-4">
-              <h3 className="text-base font-extrabold text-foreground mb-3">📈 Línea de Tiempo - Riesgos</h3>
+              <h3 className="text-base font-extrabold text-foreground mb-3">📈 {t("pred.timeline")}</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <ComposedChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -350,7 +350,7 @@ const Predicciones = () => {
 
             {/* Bar chart */}
             <div className="rounded-2xl border-2 border-border bg-card p-4">
-              <h3 className="text-base font-extrabold text-foreground mb-3">📊 Días de Helada y Precipitación</h3>
+              <h3 className="text-base font-extrabold text-foreground mb-3">📊 {t("pred.frost_days_precip")}</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -366,18 +366,18 @@ const Predicciones = () => {
 
             {/* Data table with confidence + factors */}
             <div className="rounded-2xl border-2 border-border bg-card overflow-hidden">
-              <h3 className="text-base font-extrabold text-foreground p-4 pb-2">📋 Tabla Detallada</h3>
+              <h3 className="text-base font-extrabold text-foreground p-4 pb-2">📋 {t("pred.detailed_table")}</h3>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs font-extrabold">Mes</TableHead>
-                      <TableHead className="text-xs font-extrabold">Helada</TableHead>
-                      <TableHead className="text-xs font-extrabold">T.Mín</TableHead>
+                      <TableHead className="text-xs font-extrabold">{t("pred.month")}</TableHead>
+                      <TableHead className="text-xs font-extrabold">{t("pred.frost")}</TableHead>
+                      <TableHead className="text-xs font-extrabold">{t("pred.temp_min")}</TableHead>
                       <TableHead className="text-xs font-extrabold">SPI</TableHead>
-                      <TableHead className="text-xs font-extrabold">Riesgo</TableHead>
+                      <TableHead className="text-xs font-extrabold">{t("pred.risk")}</TableHead>
                       <TableHead className="text-xs font-extrabold">
-                        <Shield className="w-3 h-3 inline" /> Conf.
+                        <Shield className="w-3 h-3 inline" /> {t("pred.confidence")}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -389,14 +389,14 @@ const Predicciones = () => {
                         <TableCell className="text-xs font-bold">{p.heladas.temp_minima_predicha ?? "-"}°</TableCell>
                         <TableCell className="text-xs font-bold">{p.sequia.spi_index}</TableCell>
                         <TableCell>{riskBadge(p.riesgo_total)}</TableCell>
-                        <TableCell>{confidenceBadge(p.heladas.nivel_confianza)}</TableCell>
+                        <TableCell>{confidenceBadge(p.heladas.nivel_confianza, t)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
               <p className="text-[10px] text-muted-foreground p-3 pt-1 text-center">
-                👆 Toca una fila para ver los factores que influyeron
+                👆 {t("pred.tap_row")}
               </p>
             </div>
 
@@ -407,12 +407,12 @@ const Predicciones = () => {
               return (
                 <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 animate-in fade-in">
                   <h3 className="text-sm font-extrabold text-foreground mb-2">
-                    🔍 {p.month_name} — Factores de la Predicción
+                    🔍 {p.month_name} — {t("pred.factors_title")}
                   </h3>
                   <div className="space-y-2">
                     {p.heladas.factores && p.heladas.factores.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-frost mb-1">❄️ Heladas:</p>
+                        <p className="text-xs font-bold text-frost mb-1">❄️ {t("pred.frost_factors")}</p>
                         {p.heladas.factores.map((f, i) => (
                           <p key={i} className="text-[11px] text-muted-foreground ml-3">• {f}</p>
                         ))}
@@ -425,7 +425,7 @@ const Predicciones = () => {
                     )}
                     {p.sequia.factores && p.sequia.factores.length > 0 && (
                       <div>
-                        <p className="text-xs font-bold text-drought mb-1">🌵 Sequía:</p>
+                        <p className="text-xs font-bold text-drought mb-1">🌵 {t("pred.drought_factors")}</p>
                         {p.sequia.factores.map((f, i) => (
                           <p key={i} className="text-[11px] text-muted-foreground ml-3">• {f}</p>
                         ))}
@@ -434,7 +434,7 @@ const Predicciones = () => {
                     <div className="flex items-center gap-2 mt-2">
                       <Shield className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-[11px] text-muted-foreground font-bold">
-                        Nivel de confianza: {confidenceBadge(p.heladas.nivel_confianza)}
+                        {t("pred.confidence_level")} {confidenceBadge(p.heladas.nivel_confianza, t)}
                       </span>
                     </div>
                   </div>
@@ -444,7 +444,7 @@ const Predicciones = () => {
 
             {/* Recommendations */}
             <div className="rounded-2xl border-2 border-border bg-card p-4">
-              <h3 className="text-base font-extrabold text-foreground mb-3">💡 Recomendaciones</h3>
+              <h3 className="text-base font-extrabold text-foreground mb-3">💡 {t("pred.recommendations")}</h3>
               <div className="space-y-3">
                 {data.predictions.filter(p => p.riesgo_total !== "BAJO").slice(0, 5).map(p => (
                   <div key={p.month} className={`p-3 rounded-xl border-2 ${
@@ -453,7 +453,7 @@ const Predicciones = () => {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-extrabold text-foreground">{p.month_name}</p>
                       {riskBadge(p.riesgo_total)}
-                      {confidenceBadge(p.heladas.nivel_confianza)}
+                      {confidenceBadge(p.heladas.nivel_confianza, t)}
                     </div>
                     <ul className="mt-1 space-y-0.5">
                       {p.recomendaciones.map((r, i) => (
@@ -467,19 +467,19 @@ const Predicciones = () => {
 
             {/* Historical baseline */}
             <div className="rounded-2xl border-2 border-border bg-card p-4">
-              <h3 className="text-sm font-extrabold text-foreground mb-2">📐 Línea Base Histórica ({data.historical_baseline.years_analyzed} años)</h3>
+              <h3 className="text-sm font-extrabold text-foreground mb-2">📐 {t("pred.baseline")} ({data.historical_baseline.years_analyzed} {t("pred.years")})</h3>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-2 rounded-xl bg-frost/10">
                   <p className="text-lg font-extrabold text-frost">{data.historical_baseline.avg_temp_min ?? "-"}°</p>
-                  <p className="text-[10px] font-bold text-muted-foreground">Temp Mín Prom</p>
+                  <p className="text-[10px] font-bold text-muted-foreground">{t("pred.temp_min_avg")}</p>
                 </div>
                 <div className="p-2 rounded-xl bg-primary/10">
                   <p className="text-lg font-extrabold text-primary">{data.historical_baseline.avg_precipitation_mm ?? "-"}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground">Precip mm</p>
+                  <p className="text-[10px] font-bold text-muted-foreground">{t("pred.precip_mm")}</p>
                 </div>
                 <div className="p-2 rounded-xl bg-safe/10">
                   <p className="text-lg font-extrabold text-safe">{data.historical_baseline.avg_ndvi ?? "-"}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground">NDVI Prom</p>
+                  <p className="text-[10px] font-bold text-muted-foreground">{t("pred.ndvi_avg")}</p>
                 </div>
               </div>
               {data.model_info && (
@@ -494,8 +494,8 @@ const Predicciones = () => {
               <div className="rounded-2xl border-2 border-dashed border-primary/30 p-4 flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors">
                 <Info className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="font-bold text-sm text-foreground">📐 Metodología y Métricas</p>
-                  <p className="text-xs text-muted-foreground">Fórmulas, fuentes de datos y limitaciones</p>
+                  <p className="font-bold text-sm text-foreground">📐 {t("pred.methodology_link")}</p>
+                  <p className="text-xs text-muted-foreground">{t("pred.methodology_desc")}</p>
                 </div>
               </div>
             </Link>
