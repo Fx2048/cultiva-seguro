@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Download, Loader2, MapPin, ChevronDown, Info, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/i18n/LanguageContext";
+import LanguageToggle from "@/components/LanguageToggle";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, BarChart, Bar, Area, ComposedChart
@@ -102,16 +104,17 @@ const riskBadge = (risk: string) => {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold border ${cls}`}>{risk}</span>;
 };
 
-const confidenceBadge = (level?: string) => {
+const confidenceBadge = (level?: string, t?: (k: any) => string) => {
   if (!level) return null;
   const cls = level === "alto" ? "bg-safe/15 text-safe border-safe"
     : level === "medio" ? "bg-warning/15 text-warning border-warning"
     : "bg-danger/15 text-danger border-danger";
-  const label = level === "alto" ? "Alto" : level === "medio" ? "Medio" : "Bajo";
+  const label = t ? (level === "alto" ? t("confidence.high") : level === "medio" ? t("confidence.medium") : t("confidence.low")) : level;
   return <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold border ${cls}`}>{label}</span>;
 };
 
 const Predicciones = () => {
+  const { t } = useLanguage();
   const [selectedRegion, setSelectedRegion] = useState(REGIONS[0]);
   const [selectedCrop, setSelectedCrop] = useState(CROPS[0]);
   const [loading, setLoading] = useState(false);
