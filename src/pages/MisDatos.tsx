@@ -170,11 +170,12 @@ const MisDatos = () => {
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl font-extrabold">📊 Mis Datos</h1>
+              <h1 className="text-xl font-extrabold">📊 {t("data.title")}</h1>
               <p className="text-xs opacity-80">{getTimeSinceSync()}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <ConnectivityBadge isOnline={isOnline} justReconnected={justReconnected} />
             <Button
               variant="ghost"
