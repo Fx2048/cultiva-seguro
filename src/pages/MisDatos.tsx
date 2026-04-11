@@ -15,12 +15,14 @@ import { exportSensorsCSV, exportSensorsJSON, exportSensorsPDF, exportAlertsCSV,
 import { syncToCloud, pullFromCloud, getTimeSinceSync, getStorageUsage } from "@/lib/syncManager";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import ConnectivityBadge from "@/components/ConnectivityBadge";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const PAGE_SIZE = 25;
 
 const MisDatos = () => {
+  const { t } = useLanguage();
   const { toast } = useToast();
-  const { isOnline, justReconnected } = useConnectivity();
   const [sensors, setSensors] = useState<SensorReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
