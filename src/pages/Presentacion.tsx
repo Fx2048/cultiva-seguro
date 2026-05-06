@@ -133,7 +133,7 @@ const slides: Slide[] = [
         <img
           src="https://raw.githubusercontent.com/Fx2048/PI_Equipo04/main/Recursos/Imagenes/Captura%20de%20pantalla%202026-05-05%20141556.png"
           alt="Contexto climático"
-          className="w-full rounded-2xl border-2 border-border shadow-md"
+          className="max-h-64 mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
           onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
         />
       </div>
@@ -161,13 +161,13 @@ const slides: Slide[] = [
     render: () => (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
         <h3 className="font-bold text-lg">📦 Caja Negra</h3>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-4">
           {[
             "https://github.com/user-attachments/assets/793d1135-7048-4ad3-a12b-2f8da52dd615",
             "https://github.com/user-attachments/assets/85952b1b-1cba-4d0f-afe7-2edb7e7d8208",
             "https://github.com/user-attachments/assets/ab4e6792-945f-4c56-af3d-469fa09d7b2a",
           ].map((src, i) => (
-            <img key={i} src={src} alt={`Caja negra ${i + 1}`} className="rounded-xl border-2 border-border" />
+            <img key={i} src={src} alt={`Caja negra ${i + 1}`} className="w-full rounded-xl border-2 border-border object-contain" />
           ))}
         </div>
         <h3 className="font-bold text-lg mt-4">🔧 Esquema de Funciones</h3>
