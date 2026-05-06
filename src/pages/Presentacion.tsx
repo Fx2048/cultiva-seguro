@@ -194,30 +194,129 @@ const slides: Slide[] = [
   {
     id: "estado-arte",
     title: "07. Estado del Arte",
-    subtitle: "Sistemas similares a nivel mundial",
-    render: () => (
-      <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-        <div className="rounded-2xl border-2 border-border p-4 space-y-2">
-          <h3 className="font-extrabold text-frost">❄️ Predicción de Heladas IoT</h3>
-          <p className="text-xs text-muted-foreground">
-            Sistema con sensores ambientales en campo que recopila temperatura, humedad y condiciones atmosféricas,
-            procesadas con algoritmos predictivos para estimar el riesgo de escarcha.
-          </p>
-          <img src="https://github.com/user-attachments/assets/2cea1bbc-ed44-435e-aeea-42f34ba3237a" alt="" className="rounded-lg w-full" />
-        </div>
-        <div className="rounded-2xl border-2 border-border p-4 space-y-2">
-          <h3 className="font-extrabold text-drought">🌵 Estrés Hídrico Remoto</h3>
-          <p className="text-xs text-muted-foreground">
-            Vehículo de inspección remota con sensores RGB e infrarrojo radiométrico. Captura el dosel vegetal y,
-            con humedad de suelo + CWSI, alimenta una red neuronal para detectar sequía temprana.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <img src="https://github.com/user-attachments/assets/43697872-b3e8-44e8-9cbf-67e8e46f463e" alt="" className="rounded-lg w-full" />
-            <img src="https://github.com/user-attachments/assets/992ca862-f784-47d8-b149-60f8e3e4ab60" alt="" className="rounded-lg w-full" />
+    subtitle: "Patentes, artículos y apps similares",
+    render: () => {
+      const patentes = [
+        {
+          tag: "Patente · US20230176247A1",
+          title: "Frost prediction system and method",
+          desc: "Sensores ambientales in situ (temperatura, humedad, atmósfera) procesados con algoritmos predictivos para estimar riesgo de escarcha y emitir alertas anticipadas.",
+          imgs: [
+            "https://github.com/user-attachments/assets/2cea1bbc-ed44-435e-aeea-42f34ba3237a",
+            "https://github.com/user-attachments/assets/c438d94b-9a25-4421-8da7-6cac467a0a66",
+          ],
+        },
+        {
+          tag: "Patente · CN204990626U",
+          title: "Sistema de difusión de alerta temprana para heladas y granizo",
+          desc: "Red de difusión que distribuye alertas tempranas de heladas y granizo a comunidades agrícolas.",
+          imgs: [
+            "https://github.com/user-attachments/assets/a59d02c4-5541-4239-8a05-37ad2f9a06bb",
+            "https://github.com/user-attachments/assets/11ee5fae-50f7-4564-b840-06a76cd2f22e",
+          ],
+        },
+        {
+          tag: "Patente · CN202195972U",
+          title: "Soil gas collector — sequía y ciclos congelación-descongelación",
+          desc: "Recolector de gases del suelo para baja temperatura, sequía y humedad. Cámara colectora hermética con control de presión, temperatura y estanqueidad.",
+          imgs: ["https://github.com/user-attachments/assets/72a69e80-1525-4998-be7f-a363d412ec72"],
+        },
+        {
+          tag: "Patente · US10728336B2",
+          title: "Integrated IoT system for smart agriculture",
+          desc: "Red de sensores en campo (T°, HR, humedad de suelo, radiación) con nodos inalámbricos. Modelos predictivos sobre series temporales para heladas y déficit hídrico.",
+          imgs: [
+            "https://github.com/user-attachments/assets/e5bd5c03-0d2e-41fc-90f8-5a92410004d4",
+            "https://github.com/user-attachments/assets/05b0e281-e3ae-407f-8709-dc3181d793ba",
+          ],
+        },
+        {
+          tag: "Patente · US12417532B2",
+          title: "Detección temprana de estrés hídrico en plantas",
+          desc: "Vehículo remoto con sensores RGB e infrarrojo radiométrico. Combina dosel + humedad de suelo + CWSI en una red neuronal para detectar sequía temprana.",
+          imgs: [
+            "https://github.com/user-attachments/assets/43697872-b3e8-44e8-9cbf-67e8e46f463e",
+            "https://github.com/user-attachments/assets/992ca862-f784-47d8-b149-60f8e3e4ab60",
+          ],
+        },
+      ];
+      const articulos = [
+        {
+          tag: "Artículo",
+          title: "Frost Prediction Using Machine Learning and Deep Neural Network",
+          desc: "DNN sobre datos meteorológicos (Alcalde, Nuevo México). Supera a métodos tradicionales en horizontes de 6–48 h.",
+          imgs: [
+            "https://github.com/user-attachments/assets/4f043ab0-7214-44b5-9ab9-aa21e862ba10",
+            "https://github.com/user-attachments/assets/0ada45a5-f1df-4a21-b1b1-d406cf45153a",
+          ],
+        },
+        {
+          tag: "Artículo",
+          title: "Intelligent Frost Forecasting and Warning System (IFFS)",
+          desc: "WSN + deep learning para pronosticar helada radiativa 3 h antes. F-score ≈96 %, exactitud de alerta 100 %.",
+          imgs: [
+            "https://github.com/user-attachments/assets/2737bca9-b84a-413a-9d13-e6dfcdb03a2e",
+            "https://github.com/user-attachments/assets/9ea4942f-da6b-4fc8-8ad7-6f66910e828e",
+          ],
+        },
+        {
+          tag: "Artículo",
+          title: "Wireless Sensors Network for Monitoring and Predicting Droughts",
+          desc: "Red inalámbrica de sensores suelo/clima → estación base → nube. Alertas por SMS/correo. Caso Nueva Zelanda.",
+          imgs: [
+            "https://github.com/user-attachments/assets/efd33898-89ae-41d2-bead-2169b8150926",
+            "https://github.com/user-attachments/assets/2462d84d-2a08-4b0f-a943-b7da058668b5",
+          ],
+        },
+      ];
+      const apps = [
+        {
+          tag: "App",
+          title: "Apps de monitoreo y alerta temprana (SENAMHI)",
+          desc: "Vitrina virtual para pronóstico de eventos extremos: lluvias, vientos, bajas temperaturas, heladas y friajes.",
+          imgs: [
+            "https://github.com/user-attachments/assets/bb0ac9bc-3063-4385-b134-6623d01b120e",
+            "https://github.com/user-attachments/assets/30df4f5c-ec73-4975-9538-2c28b874b19b",
+          ],
+        },
+      ];
+      const Card = ({ tag, title, desc, imgs }: { tag: string; title: string; desc: string; imgs: string[] }) => (
+        <div className="rounded-2xl border-2 border-border p-4 space-y-2 bg-card">
+          <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+            {tag}
+          </span>
+          <h3 className="font-extrabold text-sm leading-tight">{title}</h3>
+          <p className="text-xs text-muted-foreground">{desc}</p>
+          <div className={`grid gap-2 ${imgs.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {imgs.map((src, i) => (
+              <img key={i} src={src} alt="" loading="lazy" className="rounded-lg w-full object-cover max-h-40" />
+            ))}
           </div>
         </div>
-      </div>
-    ),
+      );
+      return (
+        <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
+          <div>
+            <h4 className="font-extrabold text-sm text-frost mb-2">📜 Patentes</h4>
+            <div className="grid grid-cols-2 gap-3">
+              {patentes.map((p) => <Card key={p.title} {...p} />)}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-extrabold text-sm text-drought mb-2">📄 Artículos científicos</h4>
+            <div className="grid grid-cols-2 gap-3">
+              {articulos.map((p) => <Card key={p.title} {...p} />)}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-extrabold text-sm text-primary mb-2">📱 Apps de referencia</h4>
+            <div className="grid grid-cols-2 gap-3">
+              {apps.map((p) => <Card key={p.title} {...p} />)}
+            </div>
+          </div>
+        </div>
+      );
+    },
   },
   {
     id: "bocetos",
