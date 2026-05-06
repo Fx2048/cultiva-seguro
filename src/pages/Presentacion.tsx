@@ -105,7 +105,7 @@ const slides: Slide[] = [
         <img
           src="https://raw.githubusercontent.com/Fx2048/PI_Equipo04/main/Recursos/Imagenes/Mapa_de_Empatia.jpg"
           alt="Mapa de Empatía"
-          className="w-full rounded-2xl border-2 border-border shadow-md"
+          className="max-h-[55vh] w-auto mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
         />
       </div>
     ),
@@ -133,7 +133,7 @@ const slides: Slide[] = [
         <img
           src="https://raw.githubusercontent.com/Fx2048/PI_Equipo04/main/Recursos/Imagenes/Captura%20de%20pantalla%202026-05-05%20141556.png"
           alt="Contexto climático"
-          className="max-h-64 mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
+          className="max-h-[40vh] w-auto mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
           onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
         />
       </div>
@@ -161,20 +161,20 @@ const slides: Slide[] = [
     render: () => (
       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
         <h3 className="font-bold text-lg">📦 Caja Negra</h3>
-        <div className="grid grid-cols-1 gap-4">
+        <div className="flex flex-col gap-4 items-center">
           {[
             "https://github.com/user-attachments/assets/793d1135-7048-4ad3-a12b-2f8da52dd615",
             "https://github.com/user-attachments/assets/85952b1b-1cba-4d0f-afe7-2edb7e7d8208",
             "https://github.com/user-attachments/assets/ab4e6792-945f-4c56-af3d-469fa09d7b2a",
           ].map((src, i) => (
-            <img key={i} src={src} alt={`Caja negra ${i + 1}`} className="w-full rounded-xl border-2 border-border object-contain" />
+            <img key={i} src={src} alt={`Caja negra ${i + 1}`} className="max-h-[55vh] w-auto max-w-full rounded-xl border-2 border-border object-contain" />
           ))}
         </div>
         <h3 className="font-bold text-lg mt-4">🔧 Esquema de Funciones</h3>
         <img
           src="https://github.com/user-attachments/assets/d5e3bd33-12fe-4204-b5b2-b9f4ad7ff29b"
           alt="Esquema de funciones"
-          className="w-full rounded-xl border-2 border-border"
+          className="max-h-[55vh] w-auto max-w-full mx-auto rounded-xl border-2 border-border object-contain"
         />
       </div>
     ),
@@ -187,7 +187,7 @@ const slides: Slide[] = [
       <img
         src="https://github.com/user-attachments/assets/2fbfa187-64fc-4669-8069-12dae9ee402b"
         alt="Matriz morfológica"
-        className="w-full rounded-2xl border-2 border-border shadow-md"
+        className="max-h-[60vh] w-auto max-w-full mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
       />
     ),
   },
@@ -289,7 +289,7 @@ const slides: Slide[] = [
           <p className="text-xs text-muted-foreground">{desc}</p>
           <div className={`grid gap-2 ${imgs.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
             {imgs.map((src, i) => (
-              <img key={i} src={src} alt="" loading="lazy" className="rounded-lg w-full object-cover max-h-40" />
+              <img key={i} src={src} alt="" loading="lazy" className="rounded-lg w-full object-contain max-h-48 bg-muted/30" />
             ))}
           </div>
         </div>
@@ -326,7 +326,7 @@ const slides: Slide[] = [
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="font-bold mb-2">🛡️ Protector del proyecto</p>
-          <img src="https://github.com/user-attachments/assets/4352745f-80a1-4d49-b52b-4963255489d6" alt="Protector" className="rounded-xl border-2 border-border" />
+          <img src="https://github.com/user-attachments/assets/4352745f-80a1-4d49-b52b-4963255489d6" alt="Protector" className="rounded-xl border-2 border-border max-h-[45vh] w-auto max-w-full mx-auto object-contain" />
           <a
             href="https://3dviewer.net/#model=https://raw.githubusercontent.com/Fx2048/PI_Equipo04/main/Recursos/Archivos/cuerpo.iges"
             target="_blank"
@@ -338,7 +338,7 @@ const slides: Slide[] = [
         </div>
         <div>
           <p className="font-bold mb-2">🔝 Tapa del protector</p>
-          <img src="https://github.com/user-attachments/assets/5c60abc9-6f93-436f-9ea4-32b38eb0766a" alt="Tapa" className="rounded-xl border-2 border-border" />
+          <img src="https://github.com/user-attachments/assets/5c60abc9-6f93-436f-9ea4-32b38eb0766a" alt="Tapa" className="rounded-xl border-2 border-border max-h-[45vh] w-auto max-w-full mx-auto object-contain" />
           <a
             href="https://3dviewer.net/#model=https://raw.githubusercontent.com/Fx2048/PI_Equipo04/main/Recursos/Archivos/tapa.iges"
             target="_blank"
@@ -392,9 +392,9 @@ const slides: Slide[] = [
     subtitle: "Diseño electrónico del nodo IoT",
     render: () => (
       <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-        <img src="https://github.com/user-attachments/assets/e66de41d-02d8-4b8b-8942-ee7b6d9352f5" alt="Esquemático" className="rounded-xl border-2 border-border col-span-2" />
-        <img src="https://github.com/user-attachments/assets/a979b486-7b90-47e3-849e-836b51f8d904" alt="Placa" className="rounded-xl border-2 border-border" />
-        <img src="https://github.com/user-attachments/assets/8d34a02d-a001-4541-9466-2a9e38911d0c" alt="PCB 3D" className="rounded-xl border-2 border-border" />
+        <img src="https://github.com/user-attachments/assets/e66de41d-02d8-4b8b-8942-ee7b6d9352f5" alt="Esquemático" className="rounded-xl border-2 border-border col-span-2 max-h-[45vh] w-auto max-w-full mx-auto object-contain" />
+        <img src="https://github.com/user-attachments/assets/a979b486-7b90-47e3-849e-836b51f8d904" alt="Placa" className="rounded-xl border-2 border-border max-h-[40vh] w-auto max-w-full mx-auto object-contain" />
+        <img src="https://github.com/user-attachments/assets/8d34a02d-a001-4541-9466-2a9e38911d0c" alt="PCB 3D" className="rounded-xl border-2 border-border max-h-[40vh] w-auto max-w-full mx-auto object-contain" />
       </div>
     ),
   },
