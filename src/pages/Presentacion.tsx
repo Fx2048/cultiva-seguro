@@ -75,7 +75,7 @@ const slides: Slide[] = [
         <p className="text-sm text-muted-foreground mt-8">Equipo 04 · Proyectos de Ingeniería I · UPCH</p>
         <div className="mt-4 flex flex-col items-center gap-2">
           <ZoomableImage
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Sustainable_Development_Goal_13.png/240px-Sustainable_Development_Goal_13.png"
+            src="https://www.gob.mx/cms/uploads/article/main_image/127099/ODS_13._Acci_n_por_el_clima.jpg"
             alt="ODS 13 - Acción por el clima"
             className="h-28 w-auto rounded-lg shadow-md"
           />
