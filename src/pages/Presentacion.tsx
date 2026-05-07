@@ -325,7 +325,13 @@ const slides: Slide[] = [
     title: "08. Bocetos y Modelado 3D",
     subtitle: "Diseño mecánico del dispositivo",
     render: () => (
-      <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-4">
+        <ZoomableImage
+          src="https://github.com/user-attachments/assets/d8241139-7864-4c63-9586-643e576ba71a"
+          alt="Boceto inicial"
+          className="rounded-xl border-2 border-border max-h-[35vh] w-auto max-w-full mx-auto object-contain"
+        />
+        <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="font-bold mb-2">🛡️ Protector del proyecto</p>
           <ZoomableImage src="https://github.com/user-attachments/assets/4352745f-80a1-4d49-b52b-4963255489d6" alt="Protector" className="rounded-xl border-2 border-border max-h-[45vh] w-auto max-w-full mx-auto object-contain" />
@@ -349,6 +355,7 @@ const slides: Slide[] = [
           >
             Ver modelo 3D de la tapa <ExternalLink className="w-3 h-3" />
           </a>
+        </div>
         </div>
       </div>
     ),
