@@ -73,6 +73,14 @@ const slides: Slide[] = [
           <span className="px-4 py-2 rounded-full bg-safe/10 text-safe font-bold">Bilingüe ES/QU</span>
         </div>
         <p className="text-sm text-muted-foreground mt-8">Equipo 04 · Proyectos de Ingeniería I · UPCH</p>
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <ZoomableImage
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Sustainable_Development_Goal_13.png/240px-Sustainable_Development_Goal_13.png"
+            alt="ODS 13 - Acción por el clima"
+            className="h-28 w-auto rounded-lg shadow-md"
+          />
+          <p className="text-xs font-bold text-muted-foreground">Alineado con ODS 13: Acción por el clima</p>
+        </div>
       </div>
     ),
   },
@@ -356,6 +364,39 @@ const slides: Slide[] = [
             Ver modelo 3D de la tapa <ExternalLink className="w-3 h-3" />
           </a>
         </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "diseno-detalle",
+    title: "08b. Diseño de Detalle",
+    subtitle: "Esquemático, placa y vista 3D del PCB",
+    render: () => (
+      <div className="grid grid-cols-3 gap-4 max-h-[65vh]">
+        <div className="flex flex-col">
+          <p className="font-bold mb-2 text-center">📐 Esquemático</p>
+          <ZoomableImage
+            src="https://github.com/user-attachments/assets/b514fb3b-0c08-470c-b968-4b73de40a499"
+            alt="Esquemático"
+            className="rounded-xl border-2 border-border w-full object-contain max-h-[55vh] bg-muted/20"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="font-bold mb-2 text-center">🔌 Placa PCB</p>
+          <ZoomableImage
+            src="https://github.com/user-attachments/assets/c030f877-c72e-4537-91c0-225de51a11e5"
+            alt="Placa PCB"
+            className="rounded-xl border-2 border-border w-full object-contain max-h-[55vh] bg-muted/20"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="font-bold mb-2 text-center">🧊 Vista 3D del PCB</p>
+          <ZoomableImage
+            src="https://github.com/user-attachments/assets/1ff6b5c3-3485-4f61-9ee7-8c7c9ae89daa"
+            alt="Vista 3D del PCB"
+            className="rounded-xl border-2 border-border w-full object-contain max-h-[55vh] bg-muted/20"
+          />
         </div>
       </div>
     ),
