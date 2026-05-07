@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ZoomableImage from "@/components/ZoomableImage";
+import matrizMorfologica from "@/assets/matriz-morfologica.png";
 
 const team = [
   {
@@ -186,7 +187,7 @@ const slides: Slide[] = [
     subtitle: "Combinación de soluciones técnicas",
     render: () => (
       <ZoomableImage
-        src="https://github.com/user-attachments/assets/2fbfa187-64fc-4669-8069-12dae9ee402b"
+        src={matrizMorfologica}
         alt="Matriz morfológica"
         className="max-h-[60vh] w-auto max-w-full mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
       />
