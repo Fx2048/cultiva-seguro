@@ -117,6 +117,14 @@ const slides: Slide[] = [
           alt="Mapa de Empatía"
           className="max-h-[55vh] w-auto mx-auto rounded-2xl border-2 border-border shadow-md object-contain"
         />
+        <div className="flex flex-col items-center gap-1">
+          <img
+            src="https://www.gob.mx/cms/uploads/article/main_image/127099/ODS_13._Acci_n_por_el_clima.jpg"
+            alt="ODS 13 - Acción por el clima"
+            className="h-24 w-auto rounded-lg shadow-md"
+          />
+          <p className="text-xs font-bold text-muted-foreground">ODS 13: Acción por el clima</p>
+        </div>
       </div>
     ),
   },
