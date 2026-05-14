@@ -459,12 +459,6 @@ const slides: Slide[] = [
     ),
   },
   {
-    id: "visualizacion",
-    title: "12. Visualización de Datos",
-    subtitle: "Demo en vivo de la plataforma WILLAY",
-    render: () => null as any,
-  },
-  {
     id: "flujo-arquitectura",
     title: "11. Arquitectura — Diagrama de Flujo",
     subtitle: "Proceso de datos y puntos de decisión del sistema WILLAY",
