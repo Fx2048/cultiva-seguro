@@ -556,7 +556,7 @@ const slides: Slide[] = [
     },
   },
   {
-    id: "visualizacion-2",
+    id: "visualizacion",
     title: "12. Visualización de Datos",
     subtitle: "Demo en vivo de la plataforma WILLAY",
     render: () => (
