@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      rl_thresholds: {
+        Row: {
+          created_at: string
+          current_threshold: number
+          device_id: string
+          id: string
+          last_calibrated_at: string
+          n_correct_silence: number
+          n_false_alarms: number
+          n_hits: number
+          n_misses: number
+          q_values: Json
+        }
+        Insert: {
+          created_at?: string
+          current_threshold?: number
+          device_id: string
+          id?: string
+          last_calibrated_at?: string
+          n_correct_silence?: number
+          n_false_alarms?: number
+          n_hits?: number
+          n_misses?: number
+          q_values?: Json
+        }
+        Update: {
+          created_at?: string
+          current_threshold?: number
+          device_id?: string
+          id?: string
+          last_calibrated_at?: string
+          n_correct_silence?: number
+          n_false_alarms?: number
+          n_hits?: number
+          n_misses?: number
+          q_values?: Json
+        }
+        Relationships: []
+      }
       sensor_readings: {
         Row: {
           created_at: string
