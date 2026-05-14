@@ -459,8 +459,105 @@ const slides: Slide[] = [
     ),
   },
   {
+    id: "flujo-arquitectura",
+    title: "11. Arquitectura — Diagrama de Flujo",
+    subtitle: "Proceso de datos y puntos de decisión del sistema WILLAY",
+    render: () => {
+      const Box = ({ children, color = "bg-primary/10 border-primary" }: { children: React.ReactNode; color?: string }) => (
+        <div className={`px-4 py-3 rounded-xl border-2 ${color} text-center text-sm font-semibold shadow-sm min-w-[170px] max-w-[220px]`}>
+          {children}
+        </div>
+      );
+      const Decision = ({ children }: { children: React.ReactNode }) => (
+        <div className="px-4 py-3 border-2 border-amber-500 bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 text-center text-sm font-bold shadow-sm rotate-45 w-[150px] h-[150px] flex items-center justify-center">
+          <div className="-rotate-45 leading-tight">{children}</div>
+        </div>
+      );
+      const Arrow = ({ label }: { label?: string }) => (
+        <div className="flex flex-col items-center text-xs text-muted-foreground font-bold">
+          {label && <span className="mb-1">{label}</span>}
+          <span className="text-2xl leading-none">↓</span>
+        </div>
+      );
+      const HArrow = ({ label }: { label?: string }) => (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold">
+          <span className="text-2xl leading-none">→</span>
+          {label && <span>{label}</span>}
+        </div>
+      );
+      return (
+        <div className="max-h-[68vh] overflow-y-auto pr-2">
+          <div className="flex flex-col items-center gap-2 py-4">
+            <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🌱 Sensor IoT (ESP32) en chacra<br/><span className="text-xs font-normal">Temp · Humedad · Suelo</span></Box>
+            <Arrow />
+            <Box>📡 Lectura cada 10 min</Box>
+            <Arrow />
+            <Decision>¿Hay conexión<br/>WiFi/Celular?</Decision>
+
+            <div className="grid grid-cols-2 gap-8 w-full max-w-3xl mt-4">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-emerald-600">SÍ →</span>
+                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">☁️ Envío MQTT a Lovable Cloud</Box>
+                <Arrow />
+                <Box>🛰️ Combinar con datos satelitales (GEE / Sentinel-2)</Box>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-orange-600">NO ↓</span>
+                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">💾 Cache local (IndexedDB)</Box>
+                <Arrow label="reintenta" />
+                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">🔄 SyncManager al recuperar red</Box>
+              </div>
+            </div>
+
+            <Arrow />
+            <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">⚙️ Edge Function: Modelo WILLAY v3<br/><span className="text-xs font-normal">CDF heladas + SPI sequía</span></Box>
+            <Arrow />
+            <Decision>¿Riesgo<br/>detectado?</Decision>
+
+            <div className="grid grid-cols-3 gap-4 w-full max-w-4xl mt-4">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-red-600">ALTO 🔴</span>
+                <Box color="bg-red-100 dark:bg-red-900/30 border-red-500">📲 SMS Twilio<br/><span className="text-xs font-normal">(&lt;160 chars, 30 min cooldown)</span></Box>
+                <Arrow />
+                <Box color="bg-red-100 dark:bg-red-900/30 border-red-500">🚨 Push + Banner en app</Box>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-amber-600">MODERADO 🟡</span>
+                <Box color="bg-amber-100 dark:bg-amber-900/30 border-amber-500">⚠️ Notificación in-app</Box>
+                <Arrow />
+                <Box color="bg-amber-100 dark:bg-amber-900/30 border-amber-500">💡 Tips preventivos</Box>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-emerald-600">BAJO 🟢</span>
+                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">📊 Solo dashboard</Box>
+                <Arrow />
+                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🗓️ Calendario de riesgo</Box>
+              </div>
+            </div>
+
+            <Arrow />
+            <Decision>¿Idioma<br/>preferido?</Decision>
+            <div className="flex gap-6 mt-2">
+              <Box color="bg-indigo-100 dark:bg-indigo-900/30 border-indigo-500">🇵🇪 Español</Box>
+              <Box color="bg-indigo-100 dark:bg-indigo-900/30 border-indigo-500">🪶 Quechua</Box>
+            </div>
+            <Arrow />
+            <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">👨‍🌾 Agricultor toma acción preventiva</Box>
+
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs w-full max-w-3xl">
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 1:</b> conectividad → online vs offline</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 2:</b> nivel de riesgo (Alto/Medio/Bajo)</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 3:</b> canal de aviso (SMS / push / pasivo)</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 4:</b> idioma del mensaje</div>
+            </div>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
     id: "visualizacion",
-    title: "11. Visualización de Datos",
+    title: "12. Visualización de Datos",
     subtitle: "Demo en vivo de la plataforma WILLAY",
     render: () => (
       <div className="flex flex-col items-center justify-center text-center gap-6 h-full">
