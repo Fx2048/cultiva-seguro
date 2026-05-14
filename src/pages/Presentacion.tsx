@@ -461,75 +461,103 @@ const slides: Slide[] = [
   {
     id: "flujo-arquitectura",
     title: "11. Arquitectura — Diagrama de Flujo",
-    subtitle: "Proceso de datos y puntos de decisión del sistema WILLAY",
+    subtitle: "Raspberry Pi 3B+ · DHT22 + FC-28 · Cifox · Aprendizaje por refuerzo con GEE",
     render: () => {
       const Box = ({ children, color = "bg-primary/10 border-primary" }: { children: React.ReactNode; color?: string }) => (
-        <div className={`px-4 py-3 rounded-xl border-2 ${color} text-center text-sm font-semibold shadow-sm min-w-[170px] max-w-[220px]`}>
+        <div className={`px-3 py-2 rounded-xl border-2 ${color} text-center text-xs font-semibold shadow-sm min-w-[180px] max-w-[230px]`}>
           {children}
         </div>
       );
       const Decision = ({ children }: { children: React.ReactNode }) => (
-        <div className="px-4 py-3 border-2 border-amber-500 bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 text-center text-sm font-bold shadow-sm rotate-45 w-[150px] h-[150px] flex items-center justify-center">
+        <div className="px-3 py-2 border-2 border-amber-500 bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 text-center text-xs font-bold shadow-sm rotate-45 w-[140px] h-[140px] flex items-center justify-center">
           <div className="-rotate-45 leading-tight">{children}</div>
         </div>
       );
       const Arrow = ({ label }: { label?: string }) => (
-        <div className="flex flex-col items-center text-xs text-muted-foreground font-bold">
-          {label && <span className="mb-1">{label}</span>}
-          <span className="text-2xl leading-none">↓</span>
-        </div>
-      );
-      const HArrow = ({ label }: { label?: string }) => (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold">
-          <span className="text-2xl leading-none">→</span>
-          {label && <span>{label}</span>}
+        <div className="flex flex-col items-center text-[10px] text-muted-foreground font-bold">
+          {label && <span className="mb-0.5">{label}</span>}
+          <span className="text-xl leading-none">↓</span>
         </div>
       );
       return (
         <div className="max-h-[68vh] overflow-y-auto pr-2">
           <div className="flex flex-col items-center gap-2 py-4">
-            <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🌱 Sensor IoT (ESP32) en chacra<br/><span className="text-xs font-normal">Temp · Humedad · Suelo</span></Box>
-            <Arrow />
-            <Box>📡 Lectura cada 10 min</Box>
-            <Arrow />
-            <Decision>¿Hay conexión<br/>WiFi/Celular?</Decision>
-
-            <div className="grid grid-cols-2 gap-8 w-full max-w-3xl mt-4">
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-emerald-600">SÍ →</span>
-                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">☁️ Envío MQTT a Lovable Cloud</Box>
-                <Arrow />
-                <Box>🛰️ Combinar con datos satelitales (GEE / Sentinel-2)</Box>
+            {/* CAPA 1 – CAPTURA EN CAMPO */}
+            <div className="w-full max-w-4xl rounded-xl border border-dashed border-emerald-500/50 p-3">
+              <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mb-2 text-center">CAPA 1 · CAPTURA EN CAMPO (Raspberry Pi 3B+)</div>
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🌡️ DHT22<br/><span className="text-[10px] font-normal">Temp + humedad del aire (GPIO4)</span></Box>
+                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🍃 FC-28<br/><span className="text-[10px] font-normal">Humedad de suelo (analógico → MCP3008)</span></Box>
+                <Box color="bg-slate-100 dark:bg-slate-800 border-slate-500">🔌 Alimentación<br/><span className="text-[10px] font-normal">Red eléctrica 5V/2.5A</span></Box>
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-orange-600">NO ↓</span>
-                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">💾 Cache local (IndexedDB)</Box>
-                <Arrow label="reintenta" />
-                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">🔄 SyncManager al recuperar red</Box>
+              <div className="flex justify-center mt-2"><Arrow /></div>
+              <div className="flex justify-center">
+                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🍓 Raspberry Pi 3B+<br/><span className="text-[10px] font-normal">Python · lectura cada 10 min</span></Box>
               </div>
             </div>
 
             <Arrow />
-            <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">⚙️ Edge Function: Modelo WILLAY v3<br/><span className="text-xs font-normal">CDF heladas + SPI sequía</span></Box>
+            <Box>🧹 Validar lectura<br/><span className="text-[10px] font-normal">descartar nulos / fuera de rango</span></Box>
             <Arrow />
-            <Decision>¿Riesgo<br/>detectado?</Decision>
+            <Box color="bg-slate-100 dark:bg-slate-800 border-slate-500">💾 Guardar en SQLite local<br/><span className="text-[10px] font-normal">buffer histórico en la Pi</span></Box>
+            <Arrow />
+            <Decision>¿Hay internet<br/>vía Cifox?</Decision>
 
-            <div className="grid grid-cols-3 gap-4 w-full max-w-4xl mt-4">
+            <div className="grid grid-cols-2 gap-8 w-full max-w-3xl mt-3">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-red-600">ALTO 🔴</span>
-                <Box color="bg-red-100 dark:bg-red-900/30 border-red-500">📲 SMS Twilio<br/><span className="text-xs font-normal">(&lt;160 chars, 30 min cooldown)</span></Box>
+                <span className="text-[11px] font-bold text-blue-600">SÍ → MODO ONLINE</span>
+                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">📡 POST HTTPS a Lovable Cloud<br/><span className="text-[10px] font-normal">Edge Function sensor-data</span></Box>
                 <Arrow />
-                <Box color="bg-red-100 dark:bg-red-900/30 border-red-500">🚨 Push + Banner en app</Box>
+                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">🛰️ Consultar histórico GEE<br/><span className="text-[10px] font-normal">Sentinel-2 / MODIS / ERA5</span></Box>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-amber-600">MODERADO 🟡</span>
+                <span className="text-[11px] font-bold text-orange-600">NO → MODO OFFLINE</span>
+                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">💾 Encolar en SQLite + IndexedDB</Box>
+                <Arrow label="reintenta" />
+                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">🔄 SyncManager al volver red Cifox</Box>
+              </div>
+            </div>
+
+            <Arrow />
+
+            {/* CAPA 2 – COMPARACIÓN E INFERENCIA */}
+            <div className="w-full max-w-4xl rounded-xl border border-dashed border-purple-500/50 p-3">
+              <div className="text-[11px] font-bold text-purple-700 dark:text-purple-300 mb-2 text-center">CAPA 2 · COMPARACIÓN + APRENDIZAJE POR REFUERZO</div>
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">📊 Lectura local (Pi)</Box>
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">⚖️ Comparar con histórico GEE<br/><span className="text-[10px] font-normal">delta = local − satelital</span></Box>
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🛰️ Histórico GEE</Box>
+              </div>
+              <div className="flex justify-center mt-2"><Arrow /></div>
+              <div className="grid grid-cols-2 gap-3 items-center">
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🤖 Agente RL (WILLAY v3)<br/><span className="text-[10px] font-normal">Q-learning · estado=clima, acción=alerta</span></Box>
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🏆 Recompensa<br/><span className="text-[10px] font-normal">+ acierto · − falsa alarma · − omisión</span></Box>
+              </div>
+              <div className="flex justify-center mt-2"><Arrow /></div>
+              <div className="flex justify-center">
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🎯 Predicción calibrada<br/><span className="text-[10px] font-normal">helada / sequía a 48h–7d</span></Box>
+              </div>
+            </div>
+
+            <Arrow />
+            <Decision>¿Nivel de<br/>riesgo?</Decision>
+
+            <div className="grid grid-cols-3 gap-4 w-full max-w-4xl mt-3">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[11px] font-bold text-red-600">ALTO 🔴</span>
+                <Box color="bg-red-100 dark:bg-red-900/30 border-red-500">📲 SMS Twilio<br/><span className="text-[10px] font-normal">(&lt;160 chars, 30 min cooldown)</span></Box>
+                <Arrow />
+                <Box color="bg-red-100 dark:bg-red-900/30 border-red-500">🚨 Push + banner en app</Box>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[11px] font-bold text-amber-600">MODERADO 🟡</span>
                 <Box color="bg-amber-100 dark:bg-amber-900/30 border-amber-500">⚠️ Notificación in-app</Box>
                 <Arrow />
                 <Box color="bg-amber-100 dark:bg-amber-900/30 border-amber-500">💡 Tips preventivos</Box>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-emerald-600">BAJO 🟢</span>
-                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">📊 Solo dashboard</Box>
+                <span className="text-[11px] font-bold text-emerald-600">BAJO 🟢</span>
+                <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">📊 Dashboard pasivo</Box>
                 <Arrow />
                 <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">🗓️ Calendario de riesgo</Box>
               </div>
@@ -543,12 +571,15 @@ const slides: Slide[] = [
             </div>
             <Arrow />
             <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">👨‍🌾 Agricultor toma acción preventiva</Box>
+            <Arrow label="feedback (acertó / no)" />
+            <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🔁 Realimentar agente RL<br/><span className="text-[10px] font-normal">ajusta política para próximas predicciones</span></Box>
 
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs w-full max-w-3xl">
-              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 1:</b> conectividad → online vs offline</div>
-              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 2:</b> nivel de riesgo (Alto/Medio/Bajo)</div>
-              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 3:</b> canal de aviso (SMS / push / pasivo)</div>
-              <div className="p-2 rounded-lg bg-muted/50 border"><b>Decisión 4:</b> idioma del mensaje</div>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-2 text-[11px] w-full max-w-4xl">
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D1:</b> ¿Lectura válida? (descartar errores)</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D2:</b> ¿Internet Cifox? online vs offline</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D3:</b> Nivel de riesgo (Alto/Medio/Bajo)</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D4:</b> Canal de aviso (SMS / push / pasivo)</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D5:</b> Idioma del mensaje (ES / QU)</div>
             </div>
           </div>
         </div>
