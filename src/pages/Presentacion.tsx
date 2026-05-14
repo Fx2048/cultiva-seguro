@@ -461,7 +461,7 @@ const slides: Slide[] = [
   {
     id: "flujo-arquitectura",
     title: "11. Arquitectura — Diagrama de Flujo",
-    subtitle: "Raspberry Pi 3B+ · DHT22 + FC-28 · Cifox · Aprendizaje por refuerzo con GEE",
+    subtitle: "Raspberry Pi 3B+ · DHT22 + FC-28 · Cifox · RL automático (sin feedback humano)",
     render: () => {
       const Box = ({ children, color = "bg-primary/10 border-primary" }: { children: React.ReactNode; color?: string }) => (
         <div className={`px-3 py-2 rounded-xl border-2 ${color} text-center text-xs font-semibold shadow-sm min-w-[180px] max-w-[230px]`}>
@@ -522,7 +522,7 @@ const slides: Slide[] = [
 
             {/* CAPA 2 – COMPARACIÓN E INFERENCIA */}
             <div className="w-full max-w-4xl rounded-xl border border-dashed border-purple-500/50 p-3">
-              <div className="text-[11px] font-bold text-purple-700 dark:text-purple-300 mb-2 text-center">CAPA 2 · COMPARACIÓN + APRENDIZAJE POR REFUERZO</div>
+              <div className="text-[11px] font-bold text-purple-700 dark:text-purple-300 mb-2 text-center">CAPA 2 · COMPARACIÓN + RL AUTOMÁTICO (Q-learning sin feedback humano)</div>
               <div className="grid grid-cols-3 gap-3 items-center">
                 <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">📊 Lectura local (Pi)</Box>
                 <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">⚖️ Comparar con histórico GEE<br/><span className="text-[10px] font-normal">delta = local − satelital</span></Box>
@@ -530,12 +530,12 @@ const slides: Slide[] = [
               </div>
               <div className="flex justify-center mt-2"><Arrow /></div>
               <div className="grid grid-cols-2 gap-3 items-center">
-                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🤖 Agente RL (WILLAY v3)<br/><span className="text-[10px] font-normal">Q-learning · estado=clima, acción=alerta</span></Box>
-                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🏆 Recompensa<br/><span className="text-[10px] font-normal">+ acierto · − falsa alarma · − omisión</span></Box>
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🤖 Agente RL por dispositivo<br/><span className="text-[10px] font-normal">tabla rl_thresholds · acción = umbral °C</span></Box>
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🏆 Recompensa automática<br/><span className="text-[10px] font-normal">+10 acierto · −5 falsa · −20 omisión</span></Box>
               </div>
               <div className="flex justify-center mt-2"><Arrow /></div>
               <div className="flex justify-center">
-                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🎯 Predicción calibrada<br/><span className="text-[10px] font-normal">helada / sequía a 48h–7d</span></Box>
+                <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🎯 Umbral calibrado por parcela<br/><span className="text-[10px] font-normal">helada / sequía a 48h–7d</span></Box>
               </div>
             </div>
 
@@ -571,15 +571,34 @@ const slides: Slide[] = [
             </div>
             <Arrow />
             <Box color="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-500">👨‍🌾 Agricultor toma acción preventiva</Box>
-            <Arrow label="feedback (acertó / no)" />
-            <Box color="bg-purple-100 dark:bg-purple-900/30 border-purple-500">🔁 Realimentar agente RL<br/><span className="text-[10px] font-normal">ajusta política para próximas predicciones</span></Box>
+            <Arrow label="(en paralelo, sin tocar la app)" />
+
+            {/* CAPA 3 – LOOP RL AUTOMÁTICO */}
+            <div className="w-full max-w-4xl rounded-xl border-2 border-fuchsia-500/60 bg-fuchsia-50/40 dark:bg-fuchsia-950/20 p-3">
+              <div className="text-[11px] font-bold text-fuchsia-700 dark:text-fuchsia-300 mb-2 text-center">CAPA 3 · LOOP DE APRENDIZAJE NOCTURNO (Edge Function rl-calibrate)</div>
+              <div className="grid grid-cols-4 gap-2 items-center">
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">🌙 18:00 → predicción del nodo</Box>
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">🌡️ 04:00 → T_min real medida por DHT22</Box>
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">⚖️ Compara: ¿alertó? ¿helada real?</Box>
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">🏆 Recompensa automática (sin pedir nada al agricultor)</Box>
+              </div>
+              <div className="flex justify-center mt-2"><Arrow /></div>
+              <div className="grid grid-cols-2 gap-3 items-center">
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">🧠 Q ← Q + α (r − Q)<br/><span className="text-[10px] font-normal">α=0.2 · 6 acciones candidatas</span></Box>
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">💾 UPSERT rl_thresholds<br/><span className="text-[10px] font-normal">umbral óptimo por device_id</span></Box>
+              </div>
+              <div className="flex justify-center mt-2"><Arrow label="el próximo ciclo usa el umbral aprendido" /></div>
+              <div className="flex justify-center">
+                <Box color="bg-fuchsia-100 dark:bg-fuchsia-900/30 border-fuchsia-500">♻️ Microclima auto-calibrado<br/><span className="text-[10px] font-normal">cada parcela tiene su propio umbral</span></Box>
+              </div>
+            </div>
 
             <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-2 text-[11px] w-full max-w-4xl">
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D1:</b> ¿Lectura válida? (descartar errores)</div>
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D2:</b> ¿Internet Cifox? online vs offline</div>
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D3:</b> Nivel de riesgo (Alto/Medio/Bajo)</div>
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D4:</b> Canal de aviso (SMS / push / pasivo)</div>
-              <div className="p-2 rounded-lg bg-muted/50 border"><b>D5:</b> Idioma del mensaje (ES / QU)</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D5:</b> Idioma (ES / QU) · RL: cero interacción del agricultor</div>
             </div>
           </div>
         </div>
