@@ -10,6 +10,7 @@ import OnboardingTutorial from "@/components/OnboardingTutorial";
 import ConnectivityBadge from "@/components/ConnectivityBadge";
 import SmsAlertConfig from "@/components/SmsAlertConfig";
 import LanguageToggle from "@/components/LanguageToggle";
+import UplinkStatusPanel from "@/components/UplinkStatusPanel";
 import { useWeather } from "@/hooks/useWeather";
 import { useConnectivity } from "@/hooks/useConnectivity";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -109,6 +110,9 @@ const Index = () => {
           locationName={weather?.locationName ?? "tu zona"}
           alertLevel={weather?.alertLevel ?? "safe"}
         />
+
+        {/* Uplink status: WiFi vs 2G + cola offline */}
+        <UplinkStatusPanel />
 
         {/* Predicciones Link */}
         <Link to="/predicciones">
