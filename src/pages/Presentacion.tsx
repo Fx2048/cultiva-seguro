@@ -461,7 +461,7 @@ const slides: Slide[] = [
   {
     id: "flujo-arquitectura",
     title: "11. Arquitectura — Diagrama de Flujo",
-    subtitle: "Raspberry Pi 3B+ · DHT22 + FC-28 · Cifox · RL automático (sin feedback humano)",
+    subtitle: "Raspberry Pi 3B+ · DHT22 + FC-28 · Cifox WiFi + SIM800 2G · cola offline · RL automático",
     render: () => {
       const Box = ({ children, color = "bg-primary/10 border-primary" }: { children: React.ReactNode; color?: string }) => (
         <div className={`px-3 py-2 rounded-xl border-2 ${color} text-center text-xs font-semibold shadow-sm min-w-[180px] max-w-[230px]`}>
@@ -501,20 +501,35 @@ const slides: Slide[] = [
             <Arrow />
             <Box color="bg-slate-100 dark:bg-slate-800 border-slate-500">💾 Guardar en SQLite local<br/><span className="text-[10px] font-normal">buffer histórico en la Pi</span></Box>
             <Arrow />
-            <Decision>¿Hay internet<br/>vía Cifox?</Decision>
+            <Decision>¿Hay enlace<br/>disponible?</Decision>
 
-            <div className="grid grid-cols-2 gap-8 w-full max-w-3xl mt-3">
+            <div className="grid grid-cols-3 gap-6 w-full max-w-4xl mt-3">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[11px] font-bold text-blue-600">SÍ → MODO ONLINE</span>
-                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">📡 POST HTTPS a Lovable Cloud<br/><span className="text-[10px] font-normal">Edge Function sensor-data</span></Box>
+                <span className="text-[11px] font-bold text-blue-600">📶 WiFi (Cifox)</span>
+                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">📡 POST HTTPS<br/><span className="text-[10px] font-normal">Edge Function <b>sensor-data</b></span></Box>
                 <Arrow />
-                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">🛰️ Consultar histórico GEE<br/><span className="text-[10px] font-normal">Sentinel-2 / MODIS / ERA5</span></Box>
+                <Box color="bg-blue-100 dark:bg-blue-900/30 border-blue-500">🛰️ Histórico GEE<br/><span className="text-[10px] font-normal">Sentinel-2 / MODIS / ERA5</span></Box>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[11px] font-bold text-orange-600">NO → MODO OFFLINE</span>
-                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">💾 Encolar en SQLite + IndexedDB</Box>
-                <Arrow label="reintenta" />
-                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">🔄 SyncManager al volver red Cifox</Box>
+                <span className="text-[11px] font-bold text-amber-600">📡 2G (SIM800)</span>
+                <Box color="bg-amber-100 dark:bg-amber-900/30 border-amber-500">🔌 UART GPIO 14/15<br/><span className="text-[10px] font-normal">3 diodos · 3× 4700 µF · SIM multi-operador</span></Box>
+                <Arrow label="JSON compacto" />
+                <Box color="bg-amber-100 dark:bg-amber-900/30 border-amber-500">📦 POST batch<br/><span className="text-[10px] font-normal">Edge Function <b>sensor-data-2g</b> · campos T/H/S abreviados</span></Box>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[11px] font-bold text-orange-600">🚫 Sin señal</span>
+                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">💾 Cola SQLite (Pi)<br/>+ IndexedDB (app)</Box>
+                <Arrow label="backoff exponencial" />
+                <Box color="bg-orange-100 dark:bg-orange-900/30 border-orange-500">🔄 Auto-flush al volver red<br/><span className="text-[10px] font-normal">prioriza WiFi · cae a 2G</span></Box>
+              </div>
+            </div>
+
+            <div className="w-full max-w-4xl mt-3 rounded-xl border-2 border-cyan-500/60 bg-cyan-50/40 dark:bg-cyan-950/20 p-3">
+              <div className="text-[11px] font-bold text-cyan-700 dark:text-cyan-300 mb-2 text-center">📊 Panel de estado en la app — muestra al agricultor:</div>
+              <div className="grid grid-cols-3 gap-3 text-[11px]">
+                <Box color="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500">📶 Transporte activo<br/><span className="text-[10px] font-normal">WiFi / 2G / sin señal</span></Box>
+                <Box color="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500">📥 Lecturas en cola<br/><span className="text-[10px] font-normal">pendientes de enviar</span></Box>
+                <Box color="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500">⏱️ Último envío<br/><span className="text-[10px] font-normal">+ botón "forzar envío"</span></Box>
               </div>
             </div>
 
@@ -595,7 +610,7 @@ const slides: Slide[] = [
 
             <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-2 text-[11px] w-full max-w-4xl">
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D1:</b> ¿Lectura válida? (descartar errores)</div>
-              <div className="p-2 rounded-lg bg-muted/50 border"><b>D2:</b> ¿Internet Cifox? online vs offline</div>
+              <div className="p-2 rounded-lg bg-muted/50 border"><b>D2:</b> Enlace: WiFi → 2G → cola offline</div>
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D3:</b> Nivel de riesgo (Alto/Medio/Bajo)</div>
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D4:</b> Canal de aviso (SMS / push / pasivo)</div>
               <div className="p-2 rounded-lg bg-muted/50 border"><b>D5:</b> Idioma (ES / QU) · RL: cero interacción del agricultor</div>
