@@ -1,4 +1,4 @@
-import { MapPin, Thermometer, Loader2, Database, Presentation } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Database, Presentation, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 import AlertBanner from "@/components/AlertBanner";
 import WeeklyForecast from "@/components/WeeklyForecast";
@@ -143,6 +143,17 @@ const Index = () => {
             <div>
               <p className="font-bold text-sm">🎤 Presentación del Proyecto</p>
               <p className="text-xs text-muted-foreground">Diapositivas WILLAY · Equipo 04</p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Arquitectura Link */}
+        <Link to="/arquitectura">
+          <div className="rounded-2xl border-2 border-dashed border-frost/40 p-4 flex items-center justify-center gap-3 hover:bg-frost/5 transition-colors cursor-pointer">
+            <Network className="w-6 h-6 text-frost" />
+            <div>
+              <p className="font-bold text-sm">🏗️ Arquitectura v4 (ESP32 + LoRa)</p>
+              <p className="text-xs text-muted-foreground">Nodos distribuidos · Pi concentrador · modelo 2 capas</p>
             </div>
           </div>
         </Link>
