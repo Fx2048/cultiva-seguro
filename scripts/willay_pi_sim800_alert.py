@@ -40,8 +40,12 @@ from datetime import datetime
 # CONFIGURACIÓN  (editar antes de desplegar en campo)
 # ─────────────────────────────────────────────────────────────────────
 DEVICE_ID        = "pi-001"
-LAT, LON         = -13.5320, -71.9675       # Cusco aprox.
-APN              = "movistar.pe"             # o "claro.pe" / "entel.pe"
+# UPCH — Sede San Martín (Tarapoto)
+LAT, LON         = -6.4869, -76.3784
+# Chip MULTIOPERADOR: el SIM se registra solo en la red disponible.
+# Probamos primero APNs específicos; si fallan, cae al genérico "internet".
+APN_CANDIDATES   = ["movistar.pe", "claro.pe", "entel.pe", "bitel.pe", "internet"]
+APN              = APN_CANDIDATES[0]         # se ajusta solo en gprs_up()
 APN_USER         = ""
 APN_PASS         = ""
 
