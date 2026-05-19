@@ -71,3 +71,18 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+
+
+
+ Script generado con cola offline SQLite, failover WiFi→SIM800L, batch JSON compacto y reintentos con backoff.
+
+Instalación rápida en la Pi:
+
+
+Ajusta DEVICE_ID, LAT/LON y el APN (Movistar/Claro Perú) al inicio del archivo.
+
+````
+pip3 install pyserial requests adafruit-circuitpython-dht adafruit-blinka spidev
+sudo python3 willay_sim800_uplink.py
+````
