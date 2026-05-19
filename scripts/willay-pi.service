@@ -1,0 +1,16 @@
+[Unit]
+Description=WILLAY · Raspberry Pi + SIM800L (SMS + POST 2G)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/pi
+ExecStart=/usr/bin/python3 /home/pi/willay_pi_sim800_alert.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/willay.log
+StandardError=append:/var/log/willay.log
+
+[Install]
+WantedBy=multi-user.target
