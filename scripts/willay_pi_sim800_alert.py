@@ -34,6 +34,9 @@ Cableado SIM800L → Raspberry Pi:
 import json
 import time
 import serial
+import os
+import pickle
+import math
 from datetime import datetime
 
 # ─────────────────────────────────────────────────────────────────────
@@ -65,6 +68,13 @@ SERIAL_PORT      = "/dev/serial0"
 BAUDRATE         = 9600
 READ_INTERVAL_S  = 600     # 10 minutos
 SMS_COOLDOWN_S   = 1800    # 30 minutos entre SMS al mismo número
+
+# Modelo entrenado en disco (se genera con train_model())
+MODEL_PATH       = "/home/pi/willay_model.pkl"
+# Histórico local de lecturas (CSV simple) para reentrenar en campo
+HIST_CSV         = "/home/pi/willay_hist.csv"
+# Horizonte de predicción de helada (horas)
+HORIZONTE_H      = 4
 
 # ─────────────────────────────────────────────────────────────────────
 # CAPA AT (SIM800L)
@@ -207,10 +217,159 @@ def read_sensors() -> dict:
 # ─────────────────────────────────────────────────────────────────────
 def predecir_helada(lectura: dict) -> float:
     """
-    Modelo EXPLICABLE local. Aquí va el XGBoost/regresión entrenado.
-    Por ahora devuelve la propia T como predicción a 4h para validar el flujo.
+    Modelo EXPLICABLE local entrenado offline (regresión / XGBoost).
+    Devuelve la temperatura predicha a HORIZONTE_H horas a partir de la
+    lectura actual {T, H, S}. Si no hay modelo en disco, cae a T actual.
     """
-    return lectura.get("T") if lectura.get("T") is not None else 99.0
+    T = lectura.get("T"); H = lectura.get("H"); S = lectura.get("S")
+    if T is None:
+        return 99.0
+    mdl = _load_model()
+    if mdl is None:
+        return T
+    try:
+        # features: [T, H, S, hora_dia, mes]
+        now = datetime.now()
+        x = [[T, H if H is not None else 60.0,
+              S if S is not None else 30.0,
+              now.hour, now.month]]
+        kind = mdl.get("kind")
+        if kind == "linear":
+            # y = b0 + b1*T + b2*H + b3*S + b4*hora + b5*mes
+            b = mdl["coef"]
+            return float(b[0] + b[1]*x[0][0] + b[2]*x[0][1] +
+                         b[3]*x[0][2] + b[4]*x[0][3] + b[5]*x[0][4])
+        else:  # sklearn / xgboost
+            return float(mdl["est"].predict(x)[0])
+    except Exception as e:
+        print(f"⚠️  Modelo falló ({e}); uso T actual")
+        return T
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ENTRENAMIENTO DEL MODELO  (lo que pidió el profesor)
+#   - Regresión lineal multivariable  (baseline explicable)
+#   - XGBoost si está instalado       (mejor precisión)
+#   - Reporta el ERROR del modelo:    MAE, RMSE, R²   (train + test)
+# ─────────────────────────────────────────────────────────────────────
+def _load_model():
+    if not os.path.exists(MODEL_PATH):
+        return None
+    with open(MODEL_PATH, "rb") as f:
+        return pickle.load(f)
+
+
+def _read_hist():
+    """CSV: ts,T,H,S,T_future_4h"""
+    X, y = [], []
+    if not os.path.exists(HIST_CSV):
+        return X, y
+    with open(HIST_CSV) as f:
+        for ln in f.readlines()[1:]:
+            try:
+                ts, T, H, S, Tf = ln.strip().split(",")
+                d = datetime.fromisoformat(ts)
+                X.append([float(T), float(H), float(S), d.hour, d.month])
+                y.append(float(Tf))
+            except Exception:
+                continue
+    return X, y
+
+
+def _metrics(y_true, y_pred):
+    n = len(y_true)
+    err = [y_pred[i] - y_true[i] for i in range(n)]
+    mae  = sum(abs(e) for e in err) / n
+    rmse = math.sqrt(sum(e*e for e in err) / n)
+    ybar = sum(y_true) / n
+    ss_t = sum((y - ybar) ** 2 for y in y_true) or 1e-9
+    ss_r = sum(e*e for e in err)
+    r2   = 1 - ss_r / ss_t
+    return mae, rmse, r2
+
+
+def train_model(use_xgboost: bool = True) -> dict:
+    """
+    Entrena el modelo de predicción de helada a 4h y mide el ERROR.
+    Pide regresión y/o XGBoost (cumple consigna del profesor).
+    Uso:  sudo python3 willay_pi_sim800_alert.py --train
+    """
+    X, y = _read_hist()
+    if len(y) < 30:
+        raise RuntimeError(
+            f"Insuficientes datos ({len(y)}). Recolecta ≥30 lecturas "
+            f"horarias en {HIST_CSV} antes de entrenar.")
+
+    # split 80/20
+    cut = int(0.8 * len(y))
+    Xtr, Xte = X[:cut], X[cut:]
+    ytr, yte = y[:cut], y[cut:]
+
+    model = None
+    kind  = None
+
+    if use_xgboost:
+        try:
+            from xgboost import XGBRegressor
+            est = XGBRegressor(n_estimators=200, max_depth=4,
+                               learning_rate=0.05, objective="reg:squarederror")
+            est.fit(Xtr, ytr)
+            model = {"kind": "xgboost", "est": est}
+            kind = "xgboost"
+        except ImportError:
+            print("ℹ️  xgboost no instalado, uso sklearn LinearRegression")
+
+    if model is None:
+        try:
+            from sklearn.linear_model import LinearRegression
+            est = LinearRegression().fit(Xtr, ytr)
+            model = {"kind": "sklearn_linear", "est": est}
+            kind = "sklearn_linear"
+        except ImportError:
+            # regresión lineal a mano (mínimos cuadrados con numpy)
+            import numpy as np
+            A = np.c_[np.ones(len(Xtr)), np.array(Xtr)]
+            coef, *_ = np.linalg.lstsq(A, np.array(ytr), rcond=None)
+            model = {"kind": "linear", "coef": coef.tolist()}
+            kind = "linear (numpy lstsq)"
+
+    # Evaluar ERROR (train + test) — esto es lo que pidió el profesor
+    def _pred(Xs):
+        if model["kind"] == "linear":
+            b = model["coef"]
+            return [b[0]+b[1]*x[0]+b[2]*x[1]+b[3]*x[2]+b[4]*x[3]+b[5]*x[4]
+                    for x in Xs]
+        return list(model["est"].predict(Xs))
+
+    mae_tr, rmse_tr, r2_tr = _metrics(ytr, _pred(Xtr))
+    mae_te, rmse_te, r2_te = _metrics(yte, _pred(Xte))
+
+    report = {
+        "modelo": kind,
+        "n_train": len(ytr), "n_test": len(yte),
+        "train": {"MAE": mae_tr, "RMSE": rmse_tr, "R2": r2_tr},
+        "test":  {"MAE": mae_te, "RMSE": rmse_te, "R2": r2_te},
+    }
+    model["report"] = report
+
+    with open(MODEL_PATH, "wb") as f:
+        pickle.dump(model, f)
+
+    print("──────── ENTRENAMIENTO WILLAY ────────")
+    print(json.dumps(report, indent=2))
+    print(f"✅ Modelo guardado en {MODEL_PATH}")
+    return report
+
+
+def _append_hist(lectura: dict, t_future: float | None = None) -> None:
+    """Guarda lectura horaria; t_future se rellena 4h después por otro job."""
+    new = not os.path.exists(HIST_CSV)
+    with open(HIST_CSV, "a") as f:
+        if new:
+            f.write("ts,T,H,S,T_future_4h\n")
+        f.write(f"{datetime.now().isoformat(timespec='seconds')},"
+                f"{lectura.get('T','')},{lectura.get('H','')},"
+                f"{lectura.get('S','')},{t_future if t_future is not None else ''}\n")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -223,6 +382,10 @@ def main() -> None:
     while True:
         lectura = read_sensors()
         print(f"[{datetime.now().isoformat(timespec='seconds')}] lectura={lectura}")
+
+        # Persistir lectura para reentrenar el modelo en campo
+        if lectura.get("T") is not None:
+            _append_hist(lectura)
 
         t_pred = predecir_helada(lectura)
         s_act  = lectura.get("S")
@@ -258,6 +421,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import sys
+    if "--train" in sys.argv:
+        # Modo entrenamiento: NO abre el SIM800.
+        sim.close()
+        train_model(use_xgboost="--no-xgb" not in sys.argv)
+        raise SystemExit(0)
     try:
         main()
     except KeyboardInterrupt:
