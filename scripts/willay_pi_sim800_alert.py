@@ -383,6 +383,10 @@ def main() -> None:
         lectura = read_sensors()
         print(f"[{datetime.now().isoformat(timespec='seconds')}] lectura={lectura}")
 
+        # Persistir lectura para reentrenar el modelo en campo
+        if lectura.get("T") is not None:
+            _append_hist(lectura)
+
         t_pred = predecir_helada(lectura)
         s_act  = lectura.get("S")
 
