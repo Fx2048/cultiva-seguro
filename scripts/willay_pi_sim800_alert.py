@@ -54,7 +54,7 @@ SUPABASE_PROJECT = "sjxaexssraavijbysqsd"
 ENDPOINT_URL     = f"https://{SUPABASE_PROJECT}.supabase.co/functions/v1/sensor-data-2g"
 
 # Números destino (agricultores) — formato internacional E.164
-PHONES_ALERTA    = ["+51999999999"]
+PHONES_ALERTA    = ["+51983073205"]
 
 # Umbrales del modelo local (estos son los "VALORES DE REFERENCIA"
 # que pidió el profesor explícitamente)
