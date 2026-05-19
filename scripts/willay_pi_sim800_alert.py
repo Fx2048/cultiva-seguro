@@ -228,6 +228,27 @@ def predecir_helada(lectura: dict) -> float:
     if mdl is None:
         return T
     try:
+        # Modelo nuevo: walk-forward RF/XGB con dos clasificadores
+        if mdl.get("kind","").endswith("walkforward"):
+            now = datetime.now()
+            # Usamos la lectura puntual como proxy diario; los lags se rellenan
+            # con el mismo valor (la Pi reentrena online con más histórico).
+            row = {c: 0.0 for c in mdl["features"]}
+            for c in mdl["features"]:
+                if c.startswith("t_min"):   row[c] = T
+                elif c.startswith("t_mean"):row[c] = T
+                elif c.startswith("humid"): row[c] = H if H is not None else 60.0
+                elif c.startswith("precip"):row[c] = 0.0
+            row["mes"] = now.month
+            row["sin_doy"] = math.sin(2*math.pi*now.timetuple().tm_yday/365)
+            row["cos_doy"] = math.cos(2*math.pi*now.timetuple().tm_yday/365)
+            row["dias_secos_acumulados"] = 0
+            import numpy as _np
+            x = _np.array([[row[c] for c in mdl["features"]]])
+            p_hel = float(mdl["model_helada"].predict_proba(x)[0][1])
+            # Devolvemos una "T equivalente" para el umbral existente:
+            # si P(helada) ≥ 0.5 → forzamos T por debajo del umbral.
+            return UMBRAL_HELADA_C - 1.0 if p_hel >= 0.5 else T
         # features: [T, H, S, hora_dia, mes]
         now = datetime.now()
         x = [[T, H if H is not None else 60.0,
