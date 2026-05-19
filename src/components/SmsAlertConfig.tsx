@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Phone, Plus, X, Send, Loader2, CheckCircle } from "lucide-react";
+import { Phone, Plus, X, Send, Loader2, CheckCircle, History } from "lucide-react";
 import { useSmsAlert } from "@/hooks/useSmsAlert";
 
 interface SmsAlertConfigProps {
@@ -7,6 +7,19 @@ interface SmsAlertConfigProps {
   locationName: string;
   alertLevel: string;
 }
+
+type AlertHistoryEntry = {
+  ts: string;
+  level: string;
+  temperatura: number | null;
+  locationName: string;
+  phones: number;
+  status: "sent" | "skipped" | "error";
+};
+
+const HISTORY_KEY = "willay_sms_history";
+const THRESHOLD_KEY = "willay_sms_threshold"; // "danger" | "warning"
+const MAX_HISTORY = 20;
 
 const SmsAlertConfig = ({ temperatura, locationName, alertLevel }: SmsAlertConfigProps) => {
   const [phones, setPhones] = useState<string[]>(() => {
@@ -18,6 +31,13 @@ const SmsAlertConfig = ({ temperatura, locationName, alertLevel }: SmsAlertConfi
   });
   const [newPhone, setNewPhone] = useState("");
   const [showConfig, setShowConfig] = useState(false);
+  const [threshold, setThreshold] = useState<"danger" | "warning">(() => {
+    return (localStorage.getItem(THRESHOLD_KEY) as "danger" | "warning") || "danger";
+  });
+  const [history, setHistory] = useState<AlertHistoryEntry[]>(() => {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    return saved ? JSON.parse(saved) : [];
+  });
   const { sendAlert, sending, lastSent } = useSmsAlert();
 
   useEffect(() => {
@@ -28,23 +48,49 @@ const SmsAlertConfig = ({ temperatura, locationName, alertLevel }: SmsAlertConfi
     localStorage.setItem("willay_twilio_from", fromNumber);
   }, [fromNumber]);
 
-  // Auto-send SMS when danger alert with temp < 0
   useEffect(() => {
+    localStorage.setItem(THRESHOLD_KEY, threshold);
+  }, [threshold]);
+
+  const appendHistory = (entry: AlertHistoryEntry) => {
+    setHistory((prev) => {
+      const next = [entry, ...prev].slice(0, MAX_HISTORY);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Auto-send SMS when risk level meets configured threshold
+  useEffect(() => {
+    const meetsThreshold =
+      alertLevel === "danger" ||
+      (threshold === "warning" && alertLevel === "warning");
+
     if (
-      alertLevel === "danger" &&
+      meetsThreshold &&
       temperatura !== null &&
-      temperatura < 0 &&
       phones.length > 0 &&
       fromNumber
     ) {
-      sendAlert({
-        phoneNumbers: phones,
-        locationName,
-        temperatura,
-        fromNumber,
-      });
+      (async () => {
+        const result: any = await sendAlert({
+          phoneNumbers: phones,
+          locationName,
+          temperatura,
+          fromNumber,
+        });
+        if (result?.skipped) return; // cooldown — don't log
+        appendHistory({
+          ts: new Date().toISOString(),
+          level: alertLevel,
+          temperatura,
+          locationName,
+          phones: phones.length,
+          status: result?.error ? "error" : "sent",
+        });
+      })();
     }
-  }, [alertLevel, temperatura, phones, fromNumber, locationName, sendAlert]);
+  }, [alertLevel, temperatura, phones, fromNumber, locationName, sendAlert, threshold]);
 
   const addPhone = () => {
     const cleaned = newPhone.trim();
@@ -60,12 +106,27 @@ const SmsAlertConfig = ({ temperatura, locationName, alertLevel }: SmsAlertConfi
 
   const handleManualSend = async () => {
     if (phones.length === 0 || !fromNumber) return;
-    await sendAlert({
+    const result: any = await sendAlert({
       phoneNumbers: phones,
       locationName,
       temperatura: temperatura ?? -2,
       fromNumber,
     });
+    if (!result?.skipped) {
+      appendHistory({
+        ts: new Date().toISOString(),
+        level: "manual",
+        temperatura: temperatura ?? -2,
+        locationName,
+        phones: phones.length,
+        status: result?.error ? "error" : "sent",
+      });
+    }
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
   };
 
   return (
