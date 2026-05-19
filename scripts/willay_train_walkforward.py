@@ -156,6 +156,79 @@ FEATURE_COLS = [
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 2ª CAPA · MODELO DEL ERROR (residual sensor − satélite)
+# ─────────────────────────────────────────────────────────────────────
+# El profesor pidió un modelo explicable de 2 capas:
+#   Capa 1: ŷ_base   = predicción con datos satelitales (ERA5)
+#   Capa 2: ŷ_final  = ŷ_base + g(features_locales)
+# donde g es un RandomForestRegressor entrenado sobre el residuo
+# (T_real_sensor − T_pred_satélite). Esto corrige microclimas locales.
+#
+# Para entrenarlo necesitamos columnas extras opcionales en el dataset:
+#   - t_min_sensor  → T mínima medida por el nodo ESP32 en el suelo
+#   - altitud       → msnm del nodo (constante por zona)
+# Si no existen, se omite el entrenamiento de la 2ª capa.
+RESIDUAL_FEATURES = [
+    "t_min", "humidity", "soil", "mes", "sin_doy", "cos_doy",
+    "t_min_lag1", "humidity_lag1",
+]
+
+
+def train_residual_model(df: pd.DataFrame):
+    """Entrena g(features) ≈ T_sensor − T_satélite.
+    Devuelve (modelo, métricas) o (None, None) si faltan columnas.
+    """
+    if "t_min_sensor" not in df.columns or df["t_min_sensor"].isna().all():
+        print("ℹ️  No hay columna t_min_sensor → se omite 2ª capa (residual).")
+        return None, None
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.metrics import mean_absolute_error, r2_score
+
+    d = df.dropna(subset=["t_min_sensor", "t_min"]).copy()
+    d["residual"] = d["t_min_sensor"] - d["t_min"]  # sensor − satélite
+    feats = [c for c in RESIDUAL_FEATURES if c in d.columns]
+    if len(d) < 50:
+        print(f"ℹ️  Pocos pares sensor/satélite ({len(d)}) → 2ª capa omitida.")
+        return None, None
+
+    # Walk-forward por año también para el residual
+    years = sorted(d["year"].unique())
+    rows = []
+    for i in range(1, len(years)):
+        tr = d[d["year"].isin(years[:i])]
+        te = d[d["year"] == years[i]]
+        if len(te) < 20: continue
+        est = RandomForestRegressor(n_estimators=200, max_depth=6,
+                                     min_samples_leaf=5, n_jobs=-1, random_state=42)
+        est.fit(tr[feats], tr["residual"])
+        pred = est.predict(te[feats])
+        mae_base = mean_absolute_error(te["t_min_sensor"], te["t_min"])
+        mae_corr = mean_absolute_error(te["t_min_sensor"], te["t_min"] + pred)
+        rows.append({
+            "year": int(years[i]),
+            "mae_base_satelite": float(mae_base),
+            "mae_corregido_2capas": float(mae_corr),
+            "mejora_pct": float(100 * (mae_base - mae_corr) / max(mae_base, 1e-6)),
+        })
+
+    final = RandomForestRegressor(n_estimators=300, max_depth=6,
+                                   min_samples_leaf=5, n_jobs=-1, random_state=42)
+    final.fit(d[feats], d["residual"])
+    metrics = {
+        "n_train": int(len(d)),
+        "features": feats,
+        "por_anio": rows,
+        "mae_base_avg":      float(np.mean([r["mae_base_satelite"] for r in rows])) if rows else 0.0,
+        "mae_corregido_avg": float(np.mean([r["mae_corregido_2capas"] for r in rows])) if rows else 0.0,
+        "mejora_pct_avg":    float(np.mean([r["mejora_pct"] for r in rows])) if rows else 0.0,
+    }
+    print(f"✅ 2ª capa entrenada. MAE base={metrics['mae_base_avg']:.2f} → "
+          f"corregido={metrics['mae_corregido_avg']:.2f} "
+          f"({metrics['mejora_pct_avg']:+.1f}%)")
+    return final, metrics
+
+
+# ─────────────────────────────────────────────────────────────────────
 # WALK-FORWARD VALIDATION
 # ─────────────────────────────────────────────────────────────────────
 def _make_estimator(use_xgb: bool):
@@ -301,6 +374,11 @@ def main():
                 },
             }
 
+    # 4b) 2ª capa · modelo del error (residual sensor−satélite)
+    m_res, res_metrics = train_residual_model(feat_train)
+    if res_metrics is not None:
+        summary["residual_layer"] = res_metrics
+
     # 5) Guardar artefactos
     plot_results(res_hel, res_seq, PLOT_PATH)
     with open(REPORT_PATH, "w") as f:
@@ -314,6 +392,8 @@ def main():
             "features": feats,
             "model_helada": m_hel,
             "model_sequia": m_seq,
+            "model_residual": m_res,
+            "residual_features": RESIDUAL_FEATURES,
             "report": summary,
             "trained_at": datetime.utcnow().isoformat(),
         }, f)
