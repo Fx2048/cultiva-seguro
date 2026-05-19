@@ -40,8 +40,12 @@ from datetime import datetime
 # CONFIGURACIÓN  (editar antes de desplegar en campo)
 # ─────────────────────────────────────────────────────────────────────
 DEVICE_ID        = "pi-001"
-LAT, LON         = -13.5320, -71.9675       # Cusco aprox.
-APN              = "movistar.pe"             # o "claro.pe" / "entel.pe"
+# UPCH — Sede San Martín (Tarapoto)
+LAT, LON         = -6.4869, -76.3784
+# Chip MULTIOPERADOR: el SIM se registra solo en la red disponible.
+# Probamos primero APNs específicos; si fallan, cae al genérico "internet".
+APN_CANDIDATES   = ["movistar.pe", "claro.pe", "entel.pe", "bitel.pe", "internet"]
+APN              = APN_CANDIDATES[0]         # se ajusta solo en gprs_up()
 APN_USER         = ""
 APN_PASS         = ""
 
@@ -121,15 +125,24 @@ def send_sms_alert_at(phone: str, mensaje: str) -> bool:
 # (2) FUNCIÓN SECUNDARIA — HTTP POST VÍA AT (GPRS/2G)
 # ─────────────────────────────────────────────────────────────────────
 def gprs_up() -> bool:
-    """Abre el bearer GPRS (AT+SAPBR)."""
-    at('AT+SAPBR=3,1,"Contype","GPRS"', 0.5)
-    at(f'AT+SAPBR=3,1,"APN","{APN}"', 0.5)
-    if APN_USER:
-        at(f'AT+SAPBR=3,1,"USER","{APN_USER}"', 0.5)
-        at(f'AT+SAPBR=3,1,"PWD","{APN_PASS}"', 0.5)
-    at("AT+SAPBR=1,1", 3)                     # activar bearer
-    resp = at("AT+SAPBR=2,1", 1)              # consultar IP
-    return "+SAPBR: 1,1" in resp
+    """
+    Abre el bearer GPRS (AT+SAPBR). Como el chip es MULTIOPERADOR, probamos
+    varios APN hasta que uno levante IP.
+    """
+    global APN
+    for apn in APN_CANDIDATES:
+        print(f"🌐 Probando APN: {apn}")
+        at("AT+SAPBR=0,1", 1)                 # cerrar bearer previo
+        at('AT+SAPBR=3,1,"Contype","GPRS"', 0.5)
+        at(f'AT+SAPBR=3,1,"APN","{apn}"', 0.5)
+        at("AT+SAPBR=1,1", 4)
+        resp = at("AT+SAPBR=2,1", 1)
+        if "+SAPBR: 1,1" in resp and "0.0.0.0" not in resp:
+            APN = apn
+            print(f"✅ GPRS activo con APN={apn}")
+            return True
+    print("❌ Ningún APN levantó GPRS")
+    return False
 
 
 def gprs_down() -> None:
