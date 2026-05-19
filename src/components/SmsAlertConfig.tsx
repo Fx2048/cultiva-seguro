@@ -149,6 +149,35 @@ const SmsAlertConfig = ({ temperatura, locationName, alertLevel }: SmsAlertConfi
 
       {showConfig && (
         <div className="mt-4 space-y-3">
+          {/* Threshold selector */}
+          <div>
+            <label className="text-sm font-bold text-foreground block mb-1">
+              ⚠️ Enviar automáticamente cuando el riesgo sea
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setThreshold("danger")}
+                className={`flex-1 rounded-xl py-2 text-sm font-bold border-2 ${
+                  threshold === "danger"
+                    ? "bg-danger text-danger-foreground border-danger"
+                    : "bg-muted text-foreground border-border"
+                }`}
+              >
+                🔴 Solo peligro
+              </button>
+              <button
+                onClick={() => setThreshold("warning")}
+                className={`flex-1 rounded-xl py-2 text-sm font-bold border-2 ${
+                  threshold === "warning"
+                    ? "bg-warning text-warning-foreground border-warning"
+                    : "bg-muted text-foreground border-border"
+                }`}
+              >
+                🟡 Precaución + peligro
+              </button>
+            </div>
+          </div>
+
           {/* From number */}
           <div>
             <label className="text-sm font-bold text-foreground block mb-1">
@@ -218,6 +247,71 @@ const SmsAlertConfig = ({ temperatura, locationName, alertLevel }: SmsAlertConfi
               ✅ Último envío: {new Date(lastSent).toLocaleTimeString("es")}
             </p>
           )}
+
+          {/* Alert history */}
+          <div className="pt-3 border-t border-border">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" />
+                <h4 className="text-sm font-extrabold text-foreground">
+                  Historial de avisos
+                </h4>
+              </div>
+              {history.length > 0 && (
+                <button
+                  onClick={clearHistory}
+                  className="text-xs font-bold text-destructive"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+            {history.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                Aún no se han enviado alertas.
+              </p>
+            ) : (
+              <ul className="space-y-1 max-h-48 overflow-y-auto">
+                {history.map((h) => {
+                  const date = new Date(h.ts);
+                  const icon =
+                    h.level === "danger"
+                      ? "🔴"
+                      : h.level === "warning"
+                      ? "🟡"
+                      : h.level === "manual"
+                      ? "📤"
+                      : "ℹ️";
+                  return (
+                    <li
+                      key={h.ts}
+                      className="text-xs bg-muted rounded-lg px-2 py-1.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span>{icon}</span>
+                        <span className="font-bold text-foreground truncate">
+                          {h.temperatura ?? "--"}°C · {h.locationName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-muted-foreground">
+                          {date.toLocaleDateString("es", { day: "2-digit", month: "2-digit" })}{" "}
+                          {date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span
+                          className={`font-bold ${
+                            h.status === "error" ? "text-destructive" : "text-safe"
+                          }`}
+                        >
+                          {h.status === "error" ? "✗" : "✓"} {h.phones}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </div>
