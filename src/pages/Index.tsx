@@ -1,4 +1,4 @@
-import { MapPin, Thermometer, Loader2, Database, Presentation, Network } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Database, Presentation, Network, Download, FileCode } from "lucide-react";
 import { Link } from "react-router-dom";
 import AlertBanner from "@/components/AlertBanner";
 import WeeklyForecast from "@/components/WeeklyForecast";
@@ -157,6 +157,48 @@ const Index = () => {
             </div>
           </div>
         </Link>
+
+        {/* Descargas de código */}
+        <section className="rounded-2xl border-2 border-primary/30 bg-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Download className="w-5 h-5 text-primary" />
+            <h2 className="font-extrabold text-base">💾 Códigos para descargar</h2>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Firmware Heltec LoRa, gateway Raspberry Pi, SIM800L y entrenamiento ML.
+          </p>
+          <ul className="space-y-2">
+            {[
+              { f: "heltec_emisor.ino", d: "Emisor LoRa (ESP32 + DHT22 + YL69)" },
+              { f: "heltec_receptor.ino", d: "Receptor LoRa → UART a la Pi" },
+              { f: "willay_gateway_pi.py", d: "Gateway Raspberry Pi (LEDs + SMS)" },
+              { f: "willay_pi_sim800_alert.py", d: "Pi + SIM800L con modelo ML" },
+              { f: "willay_train_walkforward.py", d: "Entrenamiento walk-forward + capa residual" },
+              { f: "willay-pi.service", d: "Servicio systemd para autoarranque" },
+            ].map(({ f, d }) => (
+              <li key={f}>
+                <a
+                  href={`/descargas/${f}`}
+                  download
+                  className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2 hover:bg-primary/5 transition-colors"
+                >
+                  <FileCode className="w-5 h-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{f}</p>
+                    <p className="text-xs text-muted-foreground truncate">{d}</p>
+                  </div>
+                  <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a
+            href="/descargas/"
+            className="block text-center text-xs text-primary font-semibold mt-3 underline"
+          >
+            Ver carpeta completa
+          </a>
+        </section>
       </main>
     </div>
   );
