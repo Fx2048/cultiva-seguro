@@ -10,7 +10,7 @@ import {
   BatteryCharging,
   Thermometer,
   Droplets,
-  Sun,
+  
   Layers,
   GitBranch,
   Network,
