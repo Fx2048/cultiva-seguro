@@ -181,7 +181,6 @@ const Arquitectura = () => {
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <Sun className="w-4 h-4 mt-0.5 text-warning" />
                 <BatteryCharging className="w-4 h-4 mt-0.5 text-safe" />
               <span>
                 <strong>Batería LiFePO₄</strong> con fuente de alimentación
