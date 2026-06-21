@@ -65,7 +65,7 @@ const Arquitectura = () => {
             La <strong>Raspberry Pi ya no va en cada parcela</strong>. Es el
             <strong> concentrador central</strong>. En el campo se despliegan
             <strong> nodos ESP32 + LoRa SX1278</strong> (433&nbsp;MHz, 2–5&nbsp;km
-            rurales) alimentados por <strong>batería + panel solar</strong>. Solo el
+            rurales) alimentados por <strong>batería + fuente eléctrica</strong>. Solo el
             concentrador usa <strong>SIM800L / 2G</strong> para subir a la nube.
           </p>
         </section>
