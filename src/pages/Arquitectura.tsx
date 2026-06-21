@@ -331,7 +331,7 @@ const Arquitectura = () => {
                   ["Antena LoRa alta ganancia", "Cobertura rural", "N+1"],
                   ["DHT22", "Temp + humedad aire", "N"],
                   ["Sensor humedad suelo capacitivo", "Enterrado 10-20 cm", "N"],
-                  ["Batería LiFePO₄ 3.2 V + panel 5 W", "Autonomía nodo", "N"],
+                  ["Batería LiFePO₄ 3.2 V + fuente eléctrica", "Autonomía nodo", "N"],
                   ["Raspberry Pi 4 + SIM800L", "Concentrador + 2G", "1"],
                   ["Poste / mástil 4–6 m", "Elevar antena", "1"],
                 ].map(([c, r, q]) => (
