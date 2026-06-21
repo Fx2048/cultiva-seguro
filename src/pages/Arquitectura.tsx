@@ -10,7 +10,7 @@ import {
   BatteryCharging,
   Thermometer,
   Droplets,
-  Sun,
+  
   Layers,
   GitBranch,
   Network,
@@ -65,7 +65,7 @@ const Arquitectura = () => {
             La <strong>Raspberry Pi ya no va en cada parcela</strong>. Es el
             <strong> concentrador central</strong>. En el campo se despliegan
             <strong> nodos ESP32 + LoRa SX1278</strong> (433&nbsp;MHz, 2–5&nbsp;km
-            rurales) alimentados por <strong>batería + panel solar</strong>. Solo el
+            rurales) alimentados por <strong>batería + fuente eléctrica</strong>. Solo el
             concentrador usa <strong>SIM800L / 2G</strong> para subir a la nube.
           </p>
         </section>
@@ -181,11 +181,10 @@ const Arquitectura = () => {
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <Sun className="w-4 h-4 mt-0.5 text-warning" />
-              <BatteryCharging className="w-4 h-4 mt-0.5 text-safe" />
+                <BatteryCharging className="w-4 h-4 mt-0.5 text-safe" />
               <span>
-                <strong>Batería LiFePO₄ + panel solar 5 W</strong> con
-                regulador estable (LoRa es sensible al ruido eléctrico).
+                <strong>Batería LiFePO₄</strong> con fuente de alimentación
+                eléctrica y regulador estable (LoRa es sensible al ruido eléctrico).
               </span>
             </li>
           </ul>
@@ -331,7 +330,7 @@ const Arquitectura = () => {
                   ["Antena LoRa alta ganancia", "Cobertura rural", "N+1"],
                   ["DHT22", "Temp + humedad aire", "N"],
                   ["Sensor humedad suelo capacitivo", "Enterrado 10-20 cm", "N"],
-                  ["Batería LiFePO₄ 3.2 V + panel 5 W", "Autonomía nodo", "N"],
+                  ["Batería LiFePO₄ 3.2 V + fuente eléctrica", "Autonomía nodo", "N"],
                   ["Raspberry Pi 4 + SIM800L", "Concentrador + 2G", "1"],
                   ["Poste / mástil 4–6 m", "Elevar antena", "1"],
                 ].map(([c, r, q]) => (

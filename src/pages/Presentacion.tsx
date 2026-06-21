@@ -36,7 +36,7 @@ const exigencias = [
   { t: "Geometría", d: "Dispositivo IoT compacto, resistente a viento, lluvia, UV y granizo. Carcasa inoxidable con membrana anti-condensación." },
   { t: "Señales", d: "Entrada: temperatura, humedad relativa, humedad de suelo, GPS. Salida: alertas SMS/push ES-QU, dashboard, exportación CSV/PDF." },
   { t: "Control", d: "Umbrales configurables por cultivo y zona. Alertas escalonadas (advertencia → alerta → emergencia). Series históricas 5-10 años." },
-  { t: "Hardware", d: "Microcontrolador con sensores calibrados, batería + panel solar, protección contra sobretensión y polaridad inversa." },
+  { t: "Hardware", d: "Microcontrolador con sensores calibrados, batería + fuente eléctrica, protección contra sobretensión y polaridad inversa." },
   { t: "Software", d: "App móvil/web offline-first (ISO 9241-210). Mapa interactivo, predicciones a 10 meses, exportación multi-formato." },
   { t: "Comunicación", d: "Sensor-app ≥10 m, WiFi/celular en gateway, protocolo MQTT (ISO/IEC 20922) con arquitectura distribuida." },
   { t: "Ergonomía", d: "Interfaz bilingüe ES/QU, alto contraste, navegación ≤3 toques, 4 LEDs de estado y botón de emergencia." },
