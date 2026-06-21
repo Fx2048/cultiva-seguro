@@ -182,10 +182,10 @@ const Arquitectura = () => {
             </li>
             <li className="flex items-start gap-2">
               <Sun className="w-4 h-4 mt-0.5 text-warning" />
-              <BatteryCharging className="w-4 h-4 mt-0.5 text-safe" />
+                <BatteryCharging className="w-4 h-4 mt-0.5 text-safe" />
               <span>
-                <strong>Batería LiFePO₄ + panel solar 5 W</strong> con
-                regulador estable (LoRa es sensible al ruido eléctrico).
+                <strong>Batería LiFePO₄</strong> con fuente de alimentación
+                eléctrica y regulador estable (LoRa es sensible al ruido eléctrico).
               </span>
             </li>
           </ul>
