@@ -24,7 +24,7 @@ function getNDVIColor(ndvi: number | null): string {
 function getNDVILabel(ndvi: number | null): string {
   if (ndvi === null) return "⚪ Sin datos";
   if (ndvi < 0.2) return "🔴 Estrés severo";
-  if (ndvi < 0.4) return "🟠 Estrés moderado";
+  if (ndvi < 0.4) return "🟠 Estrés muy moderado";
   if (ndvi < 0.6) return "🟡 Moderado";
   return "🟢 Saludable";
 }
@@ -280,7 +280,7 @@ const NDVIMap = () => {
         <div className="grid grid-cols-2 gap-2">
           {[
             { color: "#ef4444", label: "Estrés severo", range: "< 0.2", emoji: "🔴" },
-            { color: "#f97316", label: "Estrés moderado", range: "0.2 - 0.4", emoji: "🟠" },
+            { color: "#f97316", label: "Estrés muy moderado", range: "0.2 - 0.4", emoji: "🟠" },
             { color: "#eab308", label: "Moderado", range: "0.4 - 0.6", emoji: "🟡" },
             { color: "#22c55e", label: "Saludable", range: "> 0.6", emoji: "🟢" },
           ].map((item) => (
