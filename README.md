@@ -1,3 +1,10 @@
+Cutter, HDMI, computadora, mouse , Lora 2 ,  multímetro, raspberry, 
+Adaptador 5v, estaño, teclado
+
+Brigitte
+ Bernal belisario
+
+
 # Welcome to your Lovable project
 
 ## Project info
