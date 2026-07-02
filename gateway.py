@@ -1,29 +1,30 @@
 import requests
 
-url = "https://sjxaexssraavijbysqsd.supabase.co/functions/v1/sensor-data"
+SUPABASE_URL = "https://sjxaexssraavijbysqsd.supabase.co/functions/v1/sensor-data"
+
+API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqeGFleHNzcmFhdmlqYnlzcXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODYyMjgsImV4cCI6MjA5MDA2MjIyOH0.Rvact_njjT4wNWnSBKuFI_5saHMiQrDnUUi9r9GMmKA"
 
 headers = {
-    "apikey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqeGFleHNzcmFhdmlqYnlzcXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODYyMjgsImV4cCI6MjA5MDA2MjIyOH0.Rvact_njjT4wNWnSBKuFI_5saHMiQrDnUUi9r9GMmKA",
-    "Authorization":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqeGFleHNzcmFhdmlqYnlzcXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODYyMjgsImV4cCI6MjA5MDA2MjIyOH0.Rvact_njjT4wNWnSBKuFI_5saHMiQrDnUUi9r9GMmKA",
-    "Content-Type":"application/json"
+    "apikey": API_KEY,
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
 }
 
-data = {
-
-    "lat":-13.52,
-    "lon":-71.97,
-
-    "temperatura":11.8,
-    "humedad":82,
-
-    "humedad_suelo":46,
-
-    "device_id":"EMI001",
-
-    "source":"raspberry"
-
+payload = {
+    "lat": -13.1631,
+    "lon": -72.5450,
+    "temperatura": 12.5,
+    "humedad": 80,
+    "humedad_suelo": 45,
+    "device_id": "EMI001",
+    "source": "raspberry"
 }
 
-r=requests.post(url,json=data,headers=headers)
+r = requests.post(
+    SUPABASE_URL,
+    headers=headers,
+    json=payload
+)
 
+print(r.status_code)
 print(r.text)
