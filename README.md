@@ -1,4 +1,4 @@
-Cutter, HDMI, monitor, mouse , Lora 2 ,  multímetro, raspberry, JUMPERS, adaptador 5 v. , 
+Cutter, HDMI, monitor, mouse , Lora 2 ,  multímetro, raspberry, JUMPERS, adaptador 5 v. , estación para soldar
 Adaptador 5v, estaño, teclado
 
 
