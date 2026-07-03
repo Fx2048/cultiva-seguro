@@ -1,6 +1,8 @@
-Cutter, HDMI, computadora, mouse , Lora 2 ,  multímetro, raspberry, JUMPERS
+Cutter, HDMI, monitor, mouse , Lora 2 ,  multímetro, raspberry, JUMPERS, adaptador 5 v. , 
 Adaptador 5v, estaño, teclado
 
+
+devolver microusb 
 Brigitte
  Bernal belisario
 
