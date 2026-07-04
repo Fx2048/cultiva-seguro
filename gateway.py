@@ -1,14 +1,21 @@
 import serial
 
-# Abrir el puerto serial
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+PORT = "/dev/ttyUSB0"
+BAUD = 115200
 
-print("Gateway iniciado...")
-print("Esperando datos...\n")
+print("================================")
+print("   GATEWAY WILLAY")
+print("================================")
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
 
 while True:
-    if ser.in_waiting:
-        linea = ser.readline().decode('utf-8').strip()
+    try:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
 
         if linea:
             print(linea)
+
+    except KeyboardInterrupt:
+        print("\nGateway detenido")
+        break
