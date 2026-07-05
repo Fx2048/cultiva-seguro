@@ -13,7 +13,7 @@ import re
 LORA_PORT = "/dev/serial0"
 BAUD = 115200
 
-SUPABASE_URL = "https://sjxaexssraavijbysqsd.supabase.co/functions/v1/sensor-data-2g"
+SUPABASE_URL = "https://sjxaexssraavijbysqsd.supabase.co/functions/v1/sensor-data"
 
 POST_ENABLED = True
 RECONNECT_DELAY = 3
