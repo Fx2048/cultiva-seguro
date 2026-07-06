@@ -99,10 +99,11 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
       .select("*")
       .order("created_at", { ascending: false })
       .limit(500);
-   console.log("sensorError:", sensorError);
-   console.log("sensorData:", sensorData);
-   console.log("Cantidad:", sensorData?.length);
-     
+
+    console.log("🔥 sensorError:", sensorError);
+    console.log("📡 RAW sensorData:", sensorData);
+    console.log("📊 cantidad:", sensorData?.length);
+
     if (sensorError) {
       console.error("Sensor pull error:", sensorError);
     }
@@ -112,19 +113,19 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
         id: r.id,
         device_id: r.device_id,
 
-        // FIX: fallback seguro
-        timestamp: new Date(r.timestamp ?? r.created_at).getTime(),
+        // ✅ FIX CRÍTICO: usar created_at
+        timestamp: new Date(r.created_at).getTime(),
 
         temperatura: r.temperatura,
 
-        // FIX: tolerante a schema
-        humedad_aire: r.humedad_aire ?? r.humedad,
+        // compatibilidad por si cambió esquema
+        humedad_aire: r.humedad ?? r.humedad_aire,
         humedad_suelo: r.humedad_suelo,
 
         lat: r.lat,
         lon: r.lon,
 
-        // 🔥 CAMPOS DEL EDGE FUNCTION (ANTES SE PERDÍAN)
+        // datos extra del edge function
         prob_helada: r.prob_helada,
         prob_sequia: r.prob_sequia,
         alerta: r.alerta,
@@ -133,7 +134,12 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
         sincronizado: true,
       }));
 
+      console.log("📦 RECORDS A GUARDAR EN INDEXEDDB:", records.length);
+
       await willayDB.addManySensorReadings(records);
+
+      console.log("💾 GUARDADO EN INDEXEDDB OK");
+
       sensors = records.length;
     }
 
@@ -169,7 +175,6 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
       smsLogs = logs.length;
     }
 
-    // SOLO marcar sync si hubo data real
     if (sensors > 0 || smsLogs > 0) {
       setLastSync();
     }
