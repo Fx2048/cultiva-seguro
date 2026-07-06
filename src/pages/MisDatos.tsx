@@ -190,7 +190,9 @@ const MisDatos = () => {
           </div>
         </div>
       </header>
-
+<button onClick={pullFromCloud}>
+  🔄 Sync manual
+</button>
       <main className="max-w-2xl mx-auto px-4 mt-5 space-y-4">
         {/* Storage info */}
         <Card>
