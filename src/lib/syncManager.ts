@@ -73,10 +73,9 @@ export async function syncToCloud(): Promise<{ synced: number; errors: string[] 
       }
     }
   } catch (e: any) {
-    errors.push(e.message || "Error de sincronización");
+    errors.push(e?.message || "Error de sincronización");
   }
 
-  // SOLO actualizar si realmente hubo sync exitoso
   if (errors.length === 0) setLastSync();
 
   return { synced, errors };
@@ -91,10 +90,9 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
   let smsLogs = 0;
 
   try {
-    /* =========================================================
+    /* =========================
        SENSOR READINGS
-       FIX: NO usar "since" como filtro (evita pérdida de datos)
-    ========================================================= */
+    ========================= */
 
     const { data: sensorData, error: sensorError } = await supabase
       .from("sensor_readings")
@@ -110,13 +108,25 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
       const records: SensorReading[] = sensorData.map((r) => ({
         id: r.id,
         device_id: r.device_id,
-        timestamp: new Date(r.timestamp).getTime(),
+
+        // FIX: fallback seguro
+        timestamp: new Date(r.timestamp ?? r.created_at).getTime(),
+
         temperatura: r.temperatura,
-        humedad_aire: r.humedad,
+
+        // FIX: tolerante a schema
+        humedad_aire: r.humedad_aire ?? r.humedad,
         humedad_suelo: r.humedad_suelo,
+
         lat: r.lat,
         lon: r.lon,
-        alerta: r.alerta ?? null,
+
+        // 🔥 CAMPOS DEL EDGE FUNCTION (ANTES SE PERDÍAN)
+        prob_helada: r.prob_helada,
+        prob_sequia: r.prob_sequia,
+        alerta: r.alerta,
+        modelo: r.modelo,
+
         sincronizado: true,
       }));
 
@@ -156,8 +166,11 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
       smsLogs = logs.length;
     }
 
-    // IMPORTANTE: esto solo marca actividad de sync, no cursor de datos
-    setLastSync();
+    // SOLO marcar sync si hubo data real
+    if (sensors > 0 || smsLogs > 0) {
+      setLastSync();
+    }
+
   } catch (e) {
     console.error("Pull error:", e);
   }
@@ -180,10 +193,8 @@ export function getStorageUsage(): { usedKB: number; percentUsed: number } {
     }
   }
 
-  const usedKB = Math.round(total / 1024);
-
   return {
-    usedKB,
+    usedKB: Math.round(total / 1024),
     percentUsed: Math.round((total / (5 * 1024 * 1024)) * 100),
   };
 }
