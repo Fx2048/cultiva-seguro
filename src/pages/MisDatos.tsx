@@ -21,6 +21,13 @@ import SimulatedCharts from "@/components/SimulatedCharts";
 
 const PAGE_SIZE = 25;
 
+// Intervalo de polling en background. 60s es un balance razonable entre
+// "datos frescos" y no gastar batería/datos móviles innecesariamente.
+// Si necesitas algo más agresivo (ej. monitoreo activo de una helada en curso),
+// considera exponerlo como un toggle explícito de "modo tiempo real" en vez
+// de bajarlo por defecto para todos los usuarios.
+const POLL_INTERVAL_MS = 60000;
+
 const MisDatos = () => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -59,6 +66,34 @@ const MisDatos = () => {
   }, [toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Sync inicial al montar la página (solo si hay conexión en ese momento)
+  useEffect(() => {
+    const initSync = async () => {
+      if (isOnline) {
+        await pullFromCloud();
+        await loadData();
+      }
+    };
+
+    initSync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Polling en background: cada POLL_INTERVAL_MS, solo si hay conexión
+  // y la pestaña/app está visible (evita gastar datos/batería en segundo plano).
+  useEffect(() => {
+    if (!isOnline) return;
+
+    const interval = setInterval(async () => {
+      if (document.visibilityState === "visible") {
+        await pullFromCloud();
+        await loadData();
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [isOnline, loadData]);
 
   // Auto-sync on reconnect
   useEffect(() => {
@@ -149,6 +184,7 @@ const MisDatos = () => {
     await loadData();
     toast({ title: "🧹 Limpieza completada", description: `${deleted} registros antiguos eliminados` });
   };
+  
 
   const formatDate = (ts: number) =>
     new Date(ts).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -190,9 +226,7 @@ const MisDatos = () => {
           </div>
         </div>
       </header>
-<button onClick={pullFromCloud}>
-  🔄 Sync manual
-</button>
+      
       <main className="max-w-2xl mx-auto px-4 mt-5 space-y-4">
         {/* Storage info */}
         <Card>
