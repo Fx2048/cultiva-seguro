@@ -102,6 +102,24 @@ async function putManyToStore<T>(storeName: string, items: T[]): Promise<void> {
   });
 }
 
+// FIX: los stores usan dos formatos de timestamp distintos:
+//   - sensors / ndvi -> campo "timestamp" numérico (epoch ms)
+//   - sms_logs        -> campo "created_at" string ISO ("2026-01-01T00:00:00Z")
+// clearOldRecords() comparaba/restaba estos valores directamente asumiendo
+// que siempre eran números. Comparar un string ISO contra un número hace
+// que JS intente convertir el string con Number(), lo cual da NaN para
+// fechas ISO -> cualquier comparación con NaN es "false", así que
+// cleanupSMSLogs() nunca borraba nada (y el sort tampoco ordenaba bien).
+// toTimestamp() normaliza ambos casos a un epoch numérico comparable.
+function toTimestamp(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const t = new Date(v).getTime();
+    return Number.isNaN(t) ? 0 : t;
+  }
+  return 0;
+}
+
 async function clearOldRecords(storeName: string, indexName: string, maxAge: number, keepMin: number): Promise<number> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -113,11 +131,11 @@ async function clearOldRecords(storeName: string, indexName: string, maxAge: num
       const all = allReq.result;
       if (all.length <= keepMin) { db.close(); resolve(0); return; }
       const cutoff = Date.now() - maxAge;
-      const sorted = all.sort((a: any, b: any) => (b[indexName] || 0) - (a[indexName] || 0));
+      const sorted = all.sort((a: any, b: any) => toTimestamp(b[indexName]) - toTimestamp(a[indexName]));
       const toKeep = sorted.slice(0, keepMin);
       const keepIds = new Set(toKeep.map((r: any) => r.id));
       for (const record of all) {
-        const ts = record[indexName] || 0;
+        const ts = toTimestamp(record[indexName]);
         if (ts < cutoff && !keepIds.has(record.id)) {
           store.delete(record.id);
           deleted++;
