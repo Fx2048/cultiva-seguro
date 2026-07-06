@@ -37,6 +37,10 @@ serve(async (req) => {
           temperatura: temperatura ?? null,
           humedad: humedad ?? null,
           humedad_suelo: humedad_suelo ?? null,
+          prob_helada: body.prob_helada ?? null,
+          prob_sequia: body.prob_sequia ?? null,
+          alerta: body.alerta ?? null,
+          modelo: body.modelo ?? null,
           device_id,
           source: source || "iot",
         })

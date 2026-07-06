@@ -55,6 +55,7 @@ export type Database = {
       }
       sensor_readings: {
         Row: {
+          alerta: string | null
           created_at: string
           device_id: string
           humedad: number | null
@@ -62,11 +63,15 @@ export type Database = {
           id: string
           lat: number
           lon: number
+          modelo: string | null
+          prob_helada: number | null
+          prob_sequia: number | null
           source: string
           temperatura: number | null
           timestamp: string
         }
         Insert: {
+          alerta?: string | null
           created_at?: string
           device_id: string
           humedad?: number | null
@@ -74,11 +79,15 @@ export type Database = {
           id?: string
           lat: number
           lon: number
+          modelo?: string | null
+          prob_helada?: number | null
+          prob_sequia?: number | null
           source?: string
           temperatura?: number | null
           timestamp?: string
         }
         Update: {
+          alerta?: string | null
           created_at?: string
           device_id?: string
           humedad?: number | null
@@ -86,6 +95,9 @@ export type Database = {
           id?: string
           lat?: number
           lon?: number
+          modelo?: string | null
+          prob_helada?: number | null
+          prob_sequia?: number | null
           source?: string
           temperatura?: number | null
           timestamp?: string
