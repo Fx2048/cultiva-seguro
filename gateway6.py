@@ -6,6 +6,7 @@ import json
 import pickle
 import requests
 import numpy as np
+import pandas as pd
 
 from collections import deque
 from datetime import datetime
@@ -26,9 +27,11 @@ DEFAULT_LON = -77.0428
 # CARGAR MODELO
 # ======================================================
 
-print("Cargando modelo...")
+print("===================================")
+print(" Cargando modelo WILLAY IA")
+print("===================================")
 
-with open("willay_model.pkl","rb") as f:
+with open("willay_model.pkl", "rb") as f:
     MODEL = pickle.load(f)
 
 HELADA = MODEL["model_helada"]
@@ -38,10 +41,12 @@ FEATURES = MODEL["features"]
 with open("report.json") as f:
     REPORT = json.load(f)
 
-print("Modelo cargado correctamente")
+print("Modelo:", MODEL["kind"])
+print("Número de variables:", len(FEATURES))
+print("Modelo cargado correctamente\n")
 
 # ======================================================
-# HISTORIA (lags)
+# HISTORIAL
 # ======================================================
 
 temp_hist = deque(maxlen=3)
@@ -51,14 +56,14 @@ prec_hist = deque(maxlen=3)
 dias_secos = 0
 
 # ======================================================
-# FEATURES
+# FEATURE ENGINEERING
 # ======================================================
 
 def make_features(temp, hum, suelo):
 
     global dias_secos
 
-    precip = 0
+    precip = 0.0
 
     if suelo < 25:
         dias_secos += 1
@@ -72,7 +77,9 @@ def make_features(temp, hum, suelo):
     if len(temp_hist) < 3:
         return None
 
-    doy = datetime.now().timetuple().tm_yday
+    hoy = datetime.now()
+
+    doy = hoy.timetuple().tm_yday
 
     values = {
 
@@ -108,24 +115,22 @@ def make_features(temp, hum, suelo):
 
         "dias_secos_acumulados": dias_secos,
 
-        "mes": datetime.now().month,
+        "mes": hoy.month,
 
         "sin_doy": np.sin(2*np.pi*doy/365),
 
         "cos_doy": np.cos(2*np.pi*doy/365),
     }
 
-    X = np.array([[values[f] for f in FEATURES]])
-
-    return X
+    return pd.DataFrame([values], columns=FEATURES)
 
 # ======================================================
 # SERIAL
 # ======================================================
 
-ser = serial.Serial(PORT,BAUD,timeout=1)
+ser = serial.Serial(PORT, BAUD, timeout=1)
 
-print("Esperando datos...")
+print("Esperando datos del receptor LoRa...\n")
 
 while True:
 
@@ -138,52 +143,57 @@ while True:
 
         dato = json.loads(linea)
 
-        temp = dato["temperatura"]
-        hum = dato["humedad"]
-        suelo = dato["humedad_suelo"]
+        temp = float(dato["temperatura"])
+        hum = float(dato["humedad"])
+        suelo = float(dato["humedad_suelo"])
 
-        X = make_features(temp,hum,suelo)
+        X = make_features(temp, hum, suelo)
 
         if X is None:
-            print("Esperando suficientes datos...")
+            print("Esperando suficientes muestras para construir los lags...")
             continue
 
-        prob_helada = HELADA.predict_proba(X)[0][1]
+        prob_helada = float(HELADA.predict_proba(X)[0][1])
+        prob_sequia = float(SEQUIA.predict_proba(X)[0][1])
 
-        prob_sequia = SEQUIA.predict_proba(X)[0][1]
+        if prob_helada >= 0.60:
+            alerta = "HELADA"
+        elif prob_sequia >= 0.60:
+            alerta = "SEQUIA"
+        else:
+            alerta = "NORMAL"
 
-        print("--------------------------------")
-
-        print("Temperatura:",temp)
-
-        print("Humedad:",hum)
-
-        print("Suelo:",suelo)
-
-        print("Helada :",round(prob_helada*100,2),"%")
-
-        print("Sequia :",round(prob_sequia*100,2),"%")
+        print("-------------------------------------------")
+        print("Temperatura :", temp)
+        print("Humedad     :", hum)
+        print("Suelo       :", suelo)
+        print("Helada      :", round(prob_helada*100,2), "%")
+        print("Sequía      :", round(prob_sequia*100,2), "%")
+        print("Alerta      :", alerta)
 
         payload = {
 
-            "device_id":"heltec-rx",
+            "device_id": "heltec-rx",
 
-            "lat":DEFAULT_LAT,
+            "lat": DEFAULT_LAT,
 
-            "lon":DEFAULT_LON,
+            "lon": DEFAULT_LON,
 
-            "temperatura":temp,
+            "temperatura": temp,
 
-            "humedad":hum,
+            "humedad": hum,
 
-            "humedad_suelo":suelo,
+            "humedad_suelo": suelo,
 
-            "prob_helada":float(prob_helada),
+            "prob_helada": prob_helada,
 
-            "prob_sequia":float(prob_sequia),
+            "prob_sequia": prob_sequia,
 
-            "source":"gateway-ai"
+            "alerta": alerta,
 
+            "modelo": MODEL["kind"],
+
+            "source": "gateway-ai"
         }
 
         r = requests.post(
@@ -192,8 +202,12 @@ while True:
             timeout=5
         )
 
-        print("Supabase:",r.status_code)
+        print("Supabase:", r.status_code)
+
+        try:
+            print(r.json())
+        except Exception:
+            print(r.text)
 
     except Exception as e:
-
-        print(e)
+        print("ERROR:", e)
