@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ArrowLeft, Download, Search, Trash2, RefreshCw, Database, HardDrive, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, Search, Trash2, RefreshCw, Database, HardDrive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,6 @@ import ConnectivityBadge from "@/components/ConnectivityBadge";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useLanguage } from "@/i18n/LanguageContext";
 import SimulatedCharts from "@/components/SimulatedCharts";
-import { simulateReadings } from "@/lib/simulateReadings";
 
 const PAGE_SIZE = 25;
 
@@ -151,16 +150,6 @@ const MisDatos = () => {
     toast({ title: "🧹 Limpieza completada", description: `${deleted} registros antiguos eliminados` });
   };
 
-  const handleSimulate = async () => {
-    try {
-      const n = await simulateReadings();
-      await loadData();
-      toast({ title: "🧪 Datos simulados", description: `${n} lecturas generadas (23.1°C · aire 1% · suelo 99% + espectro de estados)` });
-    } catch {
-      toast({ title: "Error", description: "No se pudieron simular datos", variant: "destructive" });
-    }
-  };
-
   const formatDate = (ts: number) =>
     new Date(ts).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 
@@ -261,9 +250,6 @@ const MisDatos = () => {
         <div className="flex gap-2">
           <Button onClick={() => setExportOpen(true)} className="flex-1 gap-2 font-bold">
             <Download className="w-4 h-4" /> {t("data.export")} ({filtered.length})
-          </Button>
-          <Button variant="secondary" onClick={handleSimulate} className="gap-2 font-bold">
-            <Sparkles className="w-4 h-4" /> Simular
           </Button>
           <Button variant="outline" onClick={handleCleanup} className="gap-2">
             <Trash2 className="w-4 h-4" /> {t("data.cleanup")}
