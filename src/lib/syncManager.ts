@@ -99,7 +99,10 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
       .select("*")
       .order("created_at", { ascending: false })
       .limit(500);
-
+   console.log("sensorError:", sensorError);
+   console.log("sensorData:", sensorData);
+   console.log("Cantidad:", sensorData?.length);
+     
     if (sensorError) {
       console.error("Sensor pull error:", sensorError);
     }
