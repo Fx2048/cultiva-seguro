@@ -642,7 +642,8 @@ serve(async (req) => {
       });
     }
 
-    const result = computePredictions(historicalData, currentMonth, currentYear, cropType, crop_stage);
+    const realMetrics = await getRealModelMetrics();
+    const result = computePredictions(historicalData, currentMonth, currentYear, cropType, crop_stage, realMetrics);
     console.log(`🧠 Predicción v3 generada: ${result.predictions.length} meses, cultivo=${cropType}`);
 
     return new Response(JSON.stringify({
