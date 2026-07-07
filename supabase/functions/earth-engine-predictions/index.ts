@@ -43,6 +43,40 @@ async function getAccessToken(credentials: any): Promise<string> {
 
 const GEE_COMPUTE_URL = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
 
+// ── Lee report.json real generado por el pipeline Python (walk-forward) ──
+async function getRealModelMetrics(): Promise<any | null> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !key) return null;
+    const res = await fetch(`${url}/storage/v1/object/model-artifacts/report.json`, {
+      headers: { Authorization: `Bearer ${key}`, apikey: key },
+    });
+    if (!res.ok) {
+      console.warn(`report.json fetch ${res.status}`);
+      return null;
+    }
+    const report = await res.json();
+    const h = report.helada ?? {};
+    const s = report.sequia ?? {};
+    return {
+      heladas_precision: h.precision_avg != null ? Math.round(h.precision_avg * 1000) / 10 : null,
+      heladas_recall: h.recall_avg != null ? Math.round(h.recall_avg * 1000) / 10 : null,
+      sequia_precision: s.precision_avg != null ? Math.round(s.precision_avg * 1000) / 10 : null,
+      sequia_recall: s.recall_avg != null ? Math.round(s.recall_avg * 1000) / 10 : null,
+      f1_helada: h.f1_avg ?? null,
+      f1_sequia: s.f1_avg ?? null,
+      modelo: report.modelo ?? null,
+      horizonte_dias: report.horizonte_dias ?? null,
+      por_anio: { helada: h.por_anio ?? [], sequia: s.por_anio ?? [] },
+      fuente: "walk-forward Python (report.json)",
+    };
+  } catch (e) {
+    console.error("getRealModelMetrics error:", e);
+    return null;
+  }
+}
+
 function makeFilteredCollection(collectionId: string, startDate: string, endDate: string) {
   return {
     functionInvocationValue: {
