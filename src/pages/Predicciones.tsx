@@ -83,13 +83,18 @@ type PredictionResult = {
     data_sources?: string[];
   };
   model_metrics: {
-    heladas_precision?: number;
-    heladas_recall?: number;
-    sequia_precision?: number;
-    sequia_recall?: number;
+    heladas_precision?: number | null;
+    heladas_recall?: number | null;
+    sequia_precision?: number | null;
+    sequia_recall?: number | null;
     heladas_rmse?: number;
     sequia_rmse?: number;
-    r_squared: number;
+    r_squared?: number | null;
+    f1_helada?: number | null;
+    f1_sequia?: number | null;
+    modelo?: string | null;
+    fuente?: string;
+    nota?: string;
   };
   crop_config?: {
     crop_type: string;
