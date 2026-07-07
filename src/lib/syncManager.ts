@@ -119,7 +119,7 @@ export async function pullFromCloud(): Promise<{ sensors: number; smsLogs: numbe
         temperatura: r.temperatura,
 
         // compatibilidad por si cambió esquema
-        humedad_aire: r.humedad ?? r.humedad_aire,
+        humedad_aire: r.humedad,
         humedad_suelo: r.humedad_suelo,
 
         lat: r.lat,
