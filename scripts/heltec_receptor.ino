@@ -1,13 +1,10 @@
-// =============================================================
-// WILLAY · RECEPTOR MVP
-// Heltec WiFi LoRa 32 V3
-// Recibe datos simulados por LoRa
-// =============================================================
-
 #include <Arduino.h>
 #include "LoRaWan_APP.h"
 #include "HT_SSD1306Wire.h"
 
+//======================================================
+// CONFIGURACIÓN LORA
+//======================================================
 
 #define RF_FREQUENCY              915000000
 
@@ -15,417 +12,180 @@
 #define LORA_SPREADING_FACTOR     9
 #define LORA_CODINGRATE           1
 #define LORA_PREAMBLE_LENGTH      8
-#define LORA_SYMBOL_TIMEOUT       0
 #define LORA_IQ_INVERSION_ON      false
-
 
 #define BUFFER_SIZE 128
 
-
-#define PIN_TX_PI 20
-#define PIN_RX_PI 19
-
-
-
-SSD1306Wire oled(
-0x3c,
-500000,
-SDA_OLED,
-SCL_OLED,
-GEOMETRY_128_64,
-RST_OLED
-);
-
-
+char rxpacket[BUFFER_SIZE];
 
 static RadioEvents_t RadioEvents;
 
+//======================================================
+// OLED
+//======================================================
 
-char rxpacket[BUFFER_SIZE];
+SSD1306Wire oled(
+    0x3c,
+    500000,
+    SDA_OLED,
+    SCL_OLED,
+    GEOMETRY_128_64,
+    RST_OLED
+);
 
+//======================================================
+// RECEPCIÓN LORA
+//======================================================
 
-uint32_t pkts=0;
-
-
-
-String evaluarEstado(int suelo)
+void OnRxDone(uint8_t *payload,
+              uint16_t size,
+              int16_t rssi,
+              int8_t snr)
 {
+    memcpy(rxpacket, payload, size);
+    rxpacket[size] = '\0';
 
-if(suelo>70)
- return "HUMEDO";
+    // Variables para almacenar los datos
+    char id[20];
+    unsigned long secuencia;
+    float temperatura;
+    float humedadAire;
+    int humedadSuelo;
+    char estado[20];
 
+    int datos = sscanf(rxpacket,
+                       "%19[^;];%lu;%f;%f;%d;%19s",
+                       id,
+                       &secuencia,
+                       &temperatura,
+                       &humedadAire,
+                       &humedadSuelo,
+                       estado);
 
-if(suelo>=40)
- return "NORMAL";
+    if (datos == 6)
+    {
+        //=============================
+        // Monitor Serie
+        //=============================
 
+        Serial.println("--------------------------------");
 
-if(suelo>=25)
- return "ALERTA";
+        Serial.print("Temperatura : ");
+        Serial.print(temperatura,1);
+        Serial.println(" C");
 
+        Serial.print("Humedad Aire: ");
+        Serial.print(humedadAire,1);
+        Serial.println(" %");
 
-if(suelo>=15)
- return "ESTRES";
+        Serial.print("Humedad Suelo: ");
+        Serial.print(humedadSuelo);
+        Serial.println(" %");
 
+        Serial.print("Estado: ");
+        Serial.println(estado);
 
-return "SEVERO";
+        Serial.println("--------------------------------");
 
+        //=============================
+        // OLED
+        //=============================
+
+        oled.clear();
+
+        oled.setFont(ArialMT_Plain_10);
+
+        oled.drawString(0, 0,
+                        "Temp: " +
+                        String(temperatura,1) +
+                        " C");
+
+        oled.drawString(0, 16,
+                        "H.Aire: " +
+                        String(humedadAire,1) +
+                        " %");
+
+        oled.drawString(0, 32,
+                        "H.Suelo: " +
+                        String(humedadSuelo) +
+                        " %");
+
+        oled.drawString(0, 48,
+                        "Estado: " +
+                        String(estado));
+
+        oled.display();
+    }
+    else
+    {
+        Serial.println("Paquete recibido con formato incorrecto");
+        Serial.println(rxpacket);
+    }
+
+    // Volver a escuchar
+    Radio.Rx(0);
 }
 
-
-
-
-void mostrarOLED(
-float temp,
-int aire,
-int suelo,
-String estado
-)
-{
-
-oled.clear();
-
-oled.setFont(ArialMT_Plain_10);
-
-
-oled.drawString(
-0,0,
-"WILLAY RX"
-);
-
-
-oled.drawString(
-0,14,
-"T:"+String(temp,1)+" C"
-);
-
-
-oled.drawString(
-0,26,
-"Suelo:"+String(suelo)+"%"
-);
-
-
-
-oled.drawString(
-0,38,
-estado
-);
-
-
-
-if(estado=="ESTRES" ||
-   estado=="SEVERO")
-{
- oled.drawString(
- 0,52,
- "RIEGO"
- );
-}
-else
-{
- oled.drawString(
- 0,52,
- "OK"
- );
-}
-
-
-oled.display();
-
-}
-
-
-
-
-
-void OnRxDone(
-uint8_t *payload,
-uint16_t size,
-int16_t rssi,
-int8_t snr
-)
-{
-
-
-uint16_t n =
-(size < BUFFER_SIZE-1)?
-size:
-BUFFER_SIZE-1;
-
-
-memcpy(
-rxpacket,
-payload,
-n
-);
-
-
-rxpacket[n]=0;
-
-
-pkts++;
-
-
-Serial.println();
-Serial.println("=================");
-Serial.println("PAQUETE RECIBIDO");
-Serial.println("=================");
-
-
-Serial.println(rxpacket);
-
-
-float temp;
-int hum;
-int suelo;
-
-
-char id[20];
-int seq;
-
-
-
-sscanf(
-rxpacket,
-"%[^;];%d;%f;%d;%d",
-id,
-&seq,
-&temp,
-&hum,
-&suelo
-);
-
-
-
-String estado =
-evaluarEstado(suelo);
-
-
-
-Serial.println(
-"ID: "+String(id)
-);
-
-
-Serial.println(
-"SEQ: "+String(seq)
-);
-
-
-Serial.println(
-"Temperatura: "
-+String(temp)
-+" C"
-);
-
-
-Serial.println(
-"Humedad aire: "
-+String(hum)
-+" %"
-);
-
-
-Serial.println(
-"Humedad suelo: "
-+String(suelo)
-+" %"
-);
-
-
-
-Serial.println(
-"ESTADO: "
-+estado
-);
-
-
-
-if(
-estado=="ESTRES" ||
-estado=="SEVERO"
-)
-{
-Serial.println(
-"ACCION: Activar riego"
-);
-}
-else
-{
-Serial.println(
-"ACCION: Monitorear"
-);
-}
-
-
-
-Serial.println(
-"RSSI: "
-+String(rssi)
-);
-
-
-
-mostrarOLED(
-temp,
-hum,
-suelo,
-estado
-);
-
-
-
-// UART hacia Raspberry
-
-Serial2.printf(
-"$WILLAY,%s,%d,%.1f,%d,%d,%d,%d*\n",
-id,
-seq,
-temp,
-hum,
-suelo,
-rssi,
-snr
-);
-
-
-
-Radio.Rx(0);
-
-}
-
-
-
-
-
-void OnRxTimeout()
-{
-Radio.Rx(0);
-}
-
-
-void OnRxError()
-{
-Radio.Rx(0);
-}
-
-
-
-
+//======================================================
+// SETUP
+//======================================================
 
 void setup()
 {
+    Serial.begin(115200);
 
-Serial.begin(115200);
+    delay(1000);
 
+    pinMode(Vext, OUTPUT);
+    digitalWrite(Vext, LOW);
 
-Serial2.begin(
-9600,
-SERIAL_8N1,
-PIN_RX_PI,
-PIN_TX_PI
-);
+    oled.init();
+    oled.flipScreenVertically();
 
+    oled.clear();
+    oled.drawString(0, 0, "WILLAY RX");
+    oled.drawString(0, 20, "Esperando...");
+    oled.display();
 
+    Mcu.begin(
+        HELTEC_BOARD,
+        SLOW_CLK_TPYE);
 
-pinMode(
-Vext,
-OUTPUT
-);
+    RadioEvents.RxDone = OnRxDone;
 
-digitalWrite(
-Vext,
-LOW
-);
+    Radio.Init(&RadioEvents);
 
+    Radio.SetChannel(RF_FREQUENCY);
 
+    Radio.SetRxConfig(
+        MODEM_LORA,
+        LORA_BANDWIDTH,
+        LORA_SPREADING_FACTOR,
+        LORA_CODINGRATE,
+        0,
+        LORA_PREAMBLE_LENGTH,
+        0,
+        false,
+        0,
+        true,
+        0,
+        0,
+        LORA_IQ_INVERSION_ON,
+        true);
 
-delay(100);
+    Radio.Rx(0);
 
-
-
-oled.init();
-oled.flipScreenVertically();
-
-
-oled.clear();
-oled.drawString(
-0,
-0,
-"WILLAY RX BOOT"
-);
-oled.display();
-
-
-
-Mcu.begin(
-HELTEC_BOARD,
-SLOW_CLK_TPYE
-);
-
-
-
-RadioEvents.RxDone =
-OnRxDone;
-
-
-RadioEvents.RxTimeout =
-OnRxTimeout;
-
-
-RadioEvents.RxError =
-OnRxError;
-
-
-
-Radio.Init(
-&RadioEvents
-);
-
-
-
-Radio.SetChannel(
-RF_FREQUENCY
-);
-
-
-
-Radio.SetRxConfig(
-MODEM_LORA,
-LORA_BANDWIDTH,
-LORA_SPREADING_FACTOR,
-LORA_CODINGRATE,
-0,
-LORA_PREAMBLE_LENGTH,
-LORA_SYMBOL_TIMEOUT,
-false,
-0,
-true,
-0,
-0,
-LORA_IQ_INVERSION_ON,
-true
-);
-
-
-
-Radio.Rx(0);
-
-
-Serial.println(
-"WILLAY RX LISTO"
-);
-
-
+    Serial.println("================================");
+    Serial.println(" WILLAY RECEPTOR LISTO");
+    Serial.println(" Esperando paquetes...");
+    Serial.println("================================");
 }
 
-
-
-
+//======================================================
+// LOOP
+//======================================================
 
 void loop()
 {
-
-Radio.IrqProcess();
-
+    Radio.IrqProcess();
 }
