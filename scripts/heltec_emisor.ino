@@ -1,339 +1,267 @@
-// =============================================================
-// WILLAY · EMISOR MVP SIMULADO
-// Heltec WiFi LoRa 32 V3 · ESP32-S3 + SX1262
-// Genera datos ficticios y los transmite por LoRa
-// =============================================================
-
-#include <Arduino.h>
+#include "DHT.h"
 #include "LoRaWan_APP.h"
 #include "HT_SSD1306Wire.h"
 
 
-// ================= RADIO =================
+// =======================
+// SENSORES
+// =======================
 
-#define RF_FREQUENCY              915000000
-#define TX_OUTPUT_POWER           17
-#define LORA_BANDWIDTH            0
-#define LORA_SPREADING_FACTOR     9
-#define LORA_CODINGRATE           1
-#define LORA_PREAMBLE_LENGTH      8
-#define LORA_IQ_INVERSION_ON      false
+#define DHT22_PIN 3
+#define DHTTYPE DHT22
 
-#define BUFFER_SIZE 128
+DHT dht22(DHT22_PIN, DHTTYPE);
 
 
-// ================= CONFIG =================
+#define FC28_PIN 1
 
-#define DEVICE_ID "EMI-001"
+const int seco = 3900;
+const int humedo = 2800;
 
-#define ENVIO_MS 5000   // 5 segundos para demo
 
-
-// ================= OLED =================
+// =======================
+// OLED
+// =======================
 
 SSD1306Wire oled(
-  0x3c,
-  500000,
-  SDA_OLED,
-  SCL_OLED,
-  GEOMETRY_128_64,
-  RST_OLED
+0x3c,
+500000,
+SDA_OLED,
+SCL_OLED,
+GEOMETRY_128_64,
+RST_OLED
 );
 
 
-// ================= LORA =================
+// =======================
+// LORA
+// =======================
 
-static RadioEvents_t RadioEvents;
+#define RF_FREQUENCY 915000000
+#define TX_POWER 17
+
+#define BUFFER_SIZE 128
 
 char txpacket[BUFFER_SIZE];
 
-volatile bool loraIdle = true;
+static RadioEvents_t RadioEvents;
 
-uint32_t lastSend = 0;
-uint32_t seq = 0;
+bool loraIdle=true;
 
-
-// ================= DATOS SIMULADOS =================
+unsigned long contador=0;
 
 
-struct DatosCampo {
 
-  float temperatura;
-  int humedadAire;
-  int humedadSuelo;
+// =======================
+// ESTADO
+// =======================
 
-};
-
-
-DatosCampo simulacion[] =
+String estadoCultivo(int h)
 {
 
- {12.5,82,78},
- {13.8,79,71},
- {15.2,74,65},
- {16.4,70,58},
- {17.8,64,49},
- {18.9,59,40},
- {20.4,53,31},
- {22.1,47,24},
- {23.5,42,18},
- {24.8,38,12}
+if(h>70)
+return "HUMEDO";
 
-};
+if(h>=40)
+return "NORMAL";
+
+if(h>=25)
+return "ALERTA";
+
+if(h>=15)
+return "ESTRES";
+
+return "SEVERO";
+
+}
 
 
-int indice = 0;
 
-
-
-// ================= FUNCIONES =================
-
+// =======================
+// CALLBACK LORA
+// =======================
 
 void OnTxDone()
 {
-  loraIdle=true;
-  Serial.println("TX DONE");
+    loraIdle=true;
+    Serial.println("TX OK");
 }
 
 
 void OnTxTimeout()
 {
-  Radio.Sleep();
-  loraIdle=true;
-  Serial.println("TX TIMEOUT");
+    loraIdle=true;
+    Serial.println("TX FAIL");
 }
 
 
 
-String estadoCultivo(int suelo)
-{
-
-  if(suelo > 70)
-    return "HUMEDO";
-
-  else if(suelo >=40)
-    return "NORMAL";
-
-  else if(suelo >=25)
-    return "ALERTA";
-
-  else if(suelo >=15)
-    return "ESTRES";
-
-  else
-    return "SEVERO";
-
-}
-
-
-
-
-void mostrarOLED(
-float t,
-int aire,
-int suelo)
-{
-
- oled.clear();
-
- oled.setFont(ArialMT_Plain_10);
-
- oled.drawString(
- 0,
- 0,
- "WILLAY MVP"
- );
-
-
- oled.drawString(
- 0,
- 15,
- "Temp:"
- +String(t,1)
- +" C"
- );
-
-
- oled.drawString(
- 0,
- 30,
- "Suelo:"
- +String(suelo)
- +"%"
- );
-
-
- oled.drawString(
- 0,
- 45,
- estadoCultivo(suelo)
- );
-
-
- oled.display();
-
-}
-
-
-
-
+// =======================
+// SETUP
+// =======================
 
 void setup()
 {
 
- Serial.begin(115200);
-
- delay(500);
+Serial.begin(115200);
 
 
-
- pinMode(Vext,OUTPUT);
- digitalWrite(Vext,LOW);
+dht22.begin();
 
 
- oled.init();
- oled.flipScreenVertically();
+oled.init();
+oled.flipScreenVertically();
 
-
- oled.clear();
- oled.drawString(0,0,"WILLAY START");
- oled.display();
+oled.drawString(0,0,"WILLAY NODE");
+oled.display();
 
 
 
- Mcu.begin(
- HELTEC_BOARD,
- SLOW_CLK_TPYE
- );
+Mcu.begin(
+HELTEC_BOARD,
+SLOW_CLK_TPYE
+);
 
 
- RadioEvents.TxDone =
- OnTxDone;
-
- RadioEvents.TxTimeout =
- OnTxTimeout;
+RadioEvents.TxDone = OnTxDone;
+RadioEvents.TxTimeout = OnTxTimeout;
 
 
-
- Radio.Init(
- &RadioEvents
- );
+Radio.Init(&RadioEvents);
 
 
- Radio.SetChannel(
- RF_FREQUENCY
- );
+Radio.SetChannel(
+RF_FREQUENCY
+);
 
 
- Radio.SetTxConfig(
- MODEM_LORA,
- TX_OUTPUT_POWER,
- 0,
- LORA_BANDWIDTH,
- LORA_SPREADING_FACTOR,
- LORA_CODINGRATE,
- LORA_PREAMBLE_LENGTH,
- false,
- true,
- 0,
- 0,
- LORA_IQ_INVERSION_ON,
- 3000
- );
+
+Radio.SetTxConfig(
+MODEM_LORA,
+TX_POWER,
+0,
+0,
+9,
+1,
+8,
+false,
+true,
+0,
+0,
+false,
+3000
+);
 
 
- Serial.println(
- "WILLAY EMISOR MVP LISTO"
- );
-
+Serial.println("EMISOR LISTO");
 
 }
 
 
 
-
+// =======================
+// LOOP
+// =======================
 
 void loop()
 {
 
-
- Radio.IrqProcess();
-
+Radio.IrqProcess();
 
 
- if(
- loraIdle &&
- millis()-lastSend > ENVIO_MS
- )
- {
+if(loraIdle)
+{
 
 
- DatosCampo d =
- simulacion[indice];
+float temp=dht22.readTemperature();
+float aire=dht22.readHumidity();
 
 
- seq++;
+int adc=analogRead(FC28_PIN);
 
 
- // ID;seq;temperatura;humedad;suelo
-
- snprintf(
- txpacket,
- BUFFER_SIZE,
- "%s;%lu;%.1f;%d;%d",
- DEVICE_ID,
- seq,
- d.temperatura,
- d.humedadAire,
- d.humedadSuelo
- );
+int suelo =
+map(adc,seco,humedo,0,100);
 
 
- Serial.println(
- "TX > "
- +String(txpacket)
- );
-
-
- Serial.println(
- "Estado: "
- +estadoCultivo(d.humedadSuelo)
- );
+suelo=constrain(suelo,0,100);
 
 
 
- mostrarOLED(
- d.temperatura,
- d.humedadAire,
- d.humedadSuelo
- );
+String estado =
+estadoCultivo(suelo);
 
 
 
- loraIdle=false;
-
-
- Radio.Send(
- (uint8_t*)txpacket,
- strlen(txpacket)
- );
+contador++;
 
 
 
- lastSend=millis();
+// paquete LoRa
+
+snprintf(
+txpacket,
+BUFFER_SIZE,
+"EMI001;%lu;%.1f;%.1f;%d;%s",
+contador,
+temp,
+aire,
+suelo,
+estado.c_str()
+);
 
 
 
- indice++;
-
- if(indice>=10)
- {
-   indice=0;
- }
+Serial.println(txpacket);
 
 
- }
+
+loraIdle=false;
 
 
+Radio.Send(
+(uint8_t*)txpacket,
+strlen(txpacket)
+);
+
+
+
+
+// OLED
+
+oled.clear();
+
+
+oled.drawString(
+0,0,
+"WILLAY"
+);
+
+
+oled.drawString(
+0,15,
+"T:"+String(temp,1)+"C"
+);
+
+
+oled.drawString(
+0,30,
+"S:"+String(suelo)+"%"
+);
+
+
+oled.drawString(
+0,45,
+estado
+);
+
+
+oled.display();
+
+
+
+delay(5000);
+
+}
 
 }
