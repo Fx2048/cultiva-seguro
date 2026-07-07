@@ -1,12 +1,26 @@
+# %% [code] {"execution":{"iopub.status.busy":"2026-07-06T01:22:28.636622Z","iopub.execute_input":"2026-07-06T01:22:28.636858Z"}}
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-WILLAY · Entrenamiento offline (PC) con validación walk-forward
-================================================================
-Script SEPARADO del runtime de la Raspberry Pi. Entrena dos modelos:
+WILLAY · Entrenamiento offline con validación walk-forward
+============================================================
+VERSIÓN CORREGIDA PARA KAGGLE NOTEBOOKS.
 
-  - model_helada_t3  → P(helada en t+3 días)   (RandomForestClassifier)
-  - model_sequia_t3  → P(sequía en t+3 días)   (RandomForestClassifier)
+Cambios respecto al original:
+  1) Carga los datasets directamente desde /kaggle/input/... (así se agregan
+     con "Add Input" en el notebook) en vez de usar kagglehub para descargar
+     algo que ya está montado. Si no se encuentra ahí, intenta kagglehub
+     como respaldo (útil si corres esto fuera de Kaggle).
+  2) FEATURE_COLS ya no es una lista fija: se calcula dinámicamente según
+     qué columnas realmente tengan datos. Esto evita el bug de que una
+     columna opcional (humidity/soil) totalmente NaN hiciera que el
+     dropna() final borrara TODAS las filas del dataset.
+  3. dropna() ahora sólo se aplica sobre las columnas que realmente se usan
+     (features + targets), no sobre el DataFrame completo.
+  4) Se quitó `use_label_encoder=False` de XGBClassifier (parámetro removido
+     en xgboost >= 2.0, causa TypeError con las versiones actuales de Kaggle).
+  5) `datetime.utcnow()` (deprecado) -> `datetime.now(timezone.utc)`.
+  6) Todas las salidas se guardan explícitamente en /kaggle/working/.
 
 Cumple consigna del profesor:
   * Series temporales con validación walk-forward por año (no split aleatorio)
@@ -15,18 +29,13 @@ Cumple consigna del profesor:
   * Genera walk_forward_validation.png
   * class_weight="balanced" (las heladas son evento raro)
 
-Datasets (Kaggle):
-  - brigitteadhar49/punoeras5   → histórico ERA5 Puno (entrenamiento)
-  - brigitteadhar49/puno2026    → datos recientes 2026 (validación final)
+Uso en un notebook de Kaggle:
+    1. Add Input -> brigitteadhar49/punoeras5  y  brigitteadhar49/puno2026
+    2. !python willay_train_walkforward_kaggle.py
+       !python willay_train_walkforward_kaggle.py --xgb   (para usar XGBoost)
 
-Uso:
-    pip install kagglehub[pandas-datasets] scikit-learn pandas numpy matplotlib joblib
-    python willay_train_walkforward.py
-    python willay_train_walkforward.py --xgb       # usar XGBoost en lugar de RF
-    python willay_train_walkforward.py --no-kaggle # usar CSV local willay_hist.csv
-
-Salida:
-    willay_model.pkl   → diccionario con ambos modelos + metadatos
+Salida (en /kaggle/working/):
+    willay_model.pkl
     walk_forward_validation.png
     report.json
 """
@@ -35,7 +44,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -49,23 +58,57 @@ UMBRAL_SEQUIA_MM = 1.0     # precipitación diaria ≤ 1mm → día seco
 VENTANA_SEQUIA_D = 30      # días secos acumulados en últimos 30 días
 MIN_DIAS_SECOS   = 20      # ≥20 días secos en 30 → sequía
 
-MODEL_PATH       = "willay_model.pkl"
-REPORT_PATH      = "report.json"
-PLOT_PATH        = "walk_forward_validation.png"
+# Directorio de salida: /kaggle/working si existe (notebook de Kaggle),
+# si no, el directorio actual.
+OUT_DIR = "/kaggle/working" if os.path.isdir("/kaggle/working") else "."
+MODEL_PATH  = os.path.join(OUT_DIR, "willay_model.pkl")
+REPORT_PATH = os.path.join(OUT_DIR, "report.json")
+PLOT_PATH   = os.path.join(OUT_DIR, "walk_forward_validation.png")
 
-KAGGLE_TRAIN     = "brigitteadhar49/punoeras5"
-KAGGLE_TEST      = "brigitteadhar49/puno2026"
+KAGGLE_TRAIN = "brigitteadhar49/punoeras5"
+KAGGLE_TEST  = "brigitteadhar49/puno2026"
 
 
 # ─────────────────────────────────────────────────────────────────────
 # CARGA DE DATOS
 # ─────────────────────────────────────────────────────────────────────
-def load_kaggle(dataset: str) -> pd.DataFrame:
-    """Carga el primer CSV/parquet del dataset Kaggle indicado."""
+def _slug(s: str) -> str:
+    return s.lower().replace("_", "").replace("-", "").replace(" ", "")
+
+
+def load_from_kaggle_input(dataset: str):
+    """Busca el dataset ya montado en /kaggle/input/<nombre>/... y carga
+    el primer csv/parquet que encuentre. Devuelve None si no está montado
+    (por ejemplo, corriendo fuera de Kaggle o si falta 'Add Input')."""
+    base = "/kaggle/input"
+    if not os.path.isdir(base):
+        return None
+
+    target = _slug(dataset.split("/")[-1])
+    candidatos = []
+    for d in os.listdir(base):
+        if target in _slug(d) or _slug(d) in target:
+            candidatos.append(os.path.join(base, d))
+
+    for carpeta in candidatos:
+        for root, _, files in os.walk(carpeta):
+            for f in sorted(files):
+                fl = f.lower()
+                path = os.path.join(root, f)
+                if fl.endswith(".csv"):
+                    print(f"✅ {dataset}  ←  {path}")
+                    return pd.read_csv(path)
+                if fl.endswith(".parquet"):
+                    print(f"✅ {dataset}  ←  {path}")
+                    return pd.read_parquet(path)
+    return None
+
+
+def load_kaggle_via_hub(dataset: str) -> pd.DataFrame:
+    """Respaldo: descarga vía kagglehub (útil fuera de un notebook Kaggle)."""
     import kagglehub
     from kagglehub import KaggleDatasetAdapter
 
-    # Intentamos descubrir el archivo principal
     candidates = ["", "puno.csv", "puno_clima_era5.csv",
                   "puno_era5.csv", "data.csv", "puno2026.csv"]
     last_err = None
@@ -79,6 +122,14 @@ def load_kaggle(dataset: str) -> pd.DataFrame:
             last_err = e
             continue
     raise RuntimeError(f"No pude cargar {dataset}: {last_err}")
+
+
+def load_kaggle(dataset: str) -> pd.DataFrame:
+    df = load_from_kaggle_input(dataset)
+    if df is not None:
+        return df
+    print(f"ℹ️  '{dataset}' no está en /kaggle/input, probando kagglehub...")
+    return load_kaggle_via_hub(dataset)
 
 
 def normalize(df: pd.DataFrame) -> pd.DataFrame:
@@ -101,7 +152,7 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(f"No encontré columna de fecha en {df.columns.tolist()}")
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
-    # rellenos suaves
+    # rellenos suaves (columnas ausentes quedan como NaN explícito)
     for col in ("t_min","t_max","t_mean","precip","humidity","soil"):
         if col not in df.columns:
             df[col] = np.nan
@@ -113,61 +164,67 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────────────
 # FEATURE ENGINEERING
 # ─────────────────────────────────────────────────────────────────────
-def build_features(df: pd.DataFrame) -> pd.DataFrame:
-    d = df.copy()
-    # lags 1,2,3 + rolling 3
-    for col in ("t_min","t_mean","precip","humidity"):
-        if col in d.columns:
-            for lag in (1,2,3):
-                d[f"{col}_lag{lag}"] = d[col].shift(lag)
-            d[f"{col}_roll3"] = d[col].shift(1).rolling(3).mean()
+def build_features(df: pd.DataFrame):
+    """Devuelve (dataframe_con_features, lista_de_columnas_feature).
 
-    # día seco + acumulado
+    IMPORTANTE: sólo se generan lags/rolling para columnas que tengan al
+    menos un dato real. Esto evita que una columna opcional (humidity,
+    soil) totalmente vacía arrastre NaN a todas las filas y el dropna()
+    final borre el dataset completo.
+    """
+    d = df.copy()
+    feature_cols = []
+
+    columnas_base = [c for c in ("t_min", "t_mean", "precip", "humidity")
+                      if c in d.columns and d[c].notna().any()]
+
+    for col in columnas_base:
+        feature_cols.append(col)
+        for lag in (1, 2, 3):
+            fcol = f"{col}_lag{lag}"
+            d[fcol] = d[col].shift(lag)
+            feature_cols.append(fcol)
+        rcol = f"{col}_roll3"
+        d[rcol] = d[col].shift(1).rolling(3).mean()
+        feature_cols.append(rcol)
+
+    # día seco + acumulado (requiere precip; si no existe, se asume 0 -> sin días secos)
     d["dia_seco"] = (d["precip"].fillna(0) <= UMBRAL_SEQUIA_MM).astype(int)
     d["dias_secos_acumulados"] = (
         d["dia_seco"].shift(1).rolling(VENTANA_SEQUIA_D, min_periods=5).sum()
     )
+    feature_cols.append("dias_secos_acumulados")
 
-    # estacionalidad
+    # estacionalidad (siempre disponible por venir de 'date')
     d["mes"] = d["date"].dt.month
     d["dia_ano"] = d["date"].dt.dayofyear
     d["sin_doy"] = np.sin(2*np.pi*d["dia_ano"]/365)
     d["cos_doy"] = np.cos(2*np.pi*d["dia_ano"]/365)
+    feature_cols += ["mes", "sin_doy", "cos_doy"]
 
-    # targets a t+3 días
-    d["helada_t3"] = (d["t_min"].shift(-HORIZONTE_DIAS) <= UMBRAL_HELADA_C).astype(int)
-    d["sequia_t3"] = (
-        d["dia_seco"].shift(-HORIZONTE_DIAS).rolling(VENTANA_SEQUIA_D).sum()
-        >= MIN_DIAS_SECOS
-    ).astype(int)
+    # targets a t+3 días (requieren t_min y precip; si faltan, targets serán NaN
+    # y esas filas se descartan más abajo)
+    d["helada_t3"] = (d["t_min"].shift(-HORIZONTE_DIAS) <= UMBRAL_HELADA_C).astype("float")
+    d.loc[d["t_min"].shift(-HORIZONTE_DIAS).isna(), "helada_t3"] = np.nan
+
+    sequia_raw = d["dia_seco"].shift(-HORIZONTE_DIAS).rolling(VENTANA_SEQUIA_D).sum()
+    d["sequia_t3"] = (sequia_raw >= MIN_DIAS_SECOS).astype("float")
+    d.loc[sequia_raw.isna(), "sequia_t3"] = np.nan
 
     d["year"] = d["date"].dt.year
-    return d.dropna().reset_index(drop=True)
 
+    # Sólo tiramos filas incompletas en las columnas que de verdad usamos
+    cols_necesarias = feature_cols + ["helada_t3", "sequia_t3", "year", "date"]
+    d = d.dropna(subset=cols_necesarias).reset_index(drop=True)
+    d["helada_t3"] = d["helada_t3"].astype(int)
+    d["sequia_t3"] = d["sequia_t3"].astype(int)
 
-FEATURE_COLS = [
-    "t_min","t_mean","precip","humidity",
-    "t_min_lag1","t_min_lag2","t_min_lag3","t_min_roll3",
-    "t_mean_lag1","t_mean_lag2","t_mean_lag3","t_mean_roll3",
-    "precip_lag1","precip_lag2","precip_lag3","precip_roll3",
-    "humidity_lag1","humidity_lag2","humidity_lag3","humidity_roll3",
-    "dias_secos_acumulados","mes","sin_doy","cos_doy",
-]
+    return d, feature_cols
 
 
 # ─────────────────────────────────────────────────────────────────────
 # 2ª CAPA · MODELO DEL ERROR (residual sensor − satélite)
 # ─────────────────────────────────────────────────────────────────────
-# El profesor pidió un modelo explicable de 2 capas:
-#   Capa 1: ŷ_base   = predicción con datos satelitales (ERA5)
-#   Capa 2: ŷ_final  = ŷ_base + g(features_locales)
-# donde g es un RandomForestRegressor entrenado sobre el residuo
-# (T_real_sensor − T_pred_satélite). Esto corrige microclimas locales.
-#
-# Para entrenarlo necesitamos columnas extras opcionales en el dataset:
-#   - t_min_sensor  → T mínima medida por el nodo ESP32 en el suelo
-#   - altitud       → msnm del nodo (constante por zona)
-# Si no existen, se omite el entrenamiento de la 2ª capa.
 RESIDUAL_FEATURES = [
     "t_min", "humidity", "soil", "mes", "sin_doy", "cos_doy",
     "t_min_lag1", "humidity_lag1",
@@ -182,7 +239,7 @@ def train_residual_model(df: pd.DataFrame):
         print("ℹ️  No hay columna t_min_sensor → se omite 2ª capa (residual).")
         return None, None
     from sklearn.ensemble import RandomForestRegressor
-    from sklearn.metrics import mean_absolute_error, r2_score
+    from sklearn.metrics import mean_absolute_error
 
     d = df.dropna(subset=["t_min_sensor", "t_min"]).copy()
     d["residual"] = d["t_min_sensor"] - d["t_min"]  # sensor − satélite
@@ -191,13 +248,13 @@ def train_residual_model(df: pd.DataFrame):
         print(f"ℹ️  Pocos pares sensor/satélite ({len(d)}) → 2ª capa omitida.")
         return None, None
 
-    # Walk-forward por año también para el residual
     years = sorted(d["year"].unique())
     rows = []
     for i in range(1, len(years)):
         tr = d[d["year"].isin(years[:i])]
         te = d[d["year"] == years[i]]
-        if len(te) < 20: continue
+        if len(te) < 20:
+            continue
         est = RandomForestRegressor(n_estimators=200, max_depth=6,
                                      min_samples_leaf=5, n_jobs=-1, random_state=42)
         est.fit(tr[feats], tr["residual"])
@@ -236,19 +293,17 @@ def _make_estimator(use_xgb: bool):
         from xgboost import XGBClassifier
         return XGBClassifier(
             n_estimators=300, max_depth=5, learning_rate=0.05,
-            scale_pos_weight=5, eval_metric="logloss", use_label_encoder=False)
+            scale_pos_weight=5, eval_metric="logloss")
     from sklearn.ensemble import RandomForestClassifier
     return RandomForestClassifier(
         n_estimators=300, max_depth=10, min_samples_leaf=5,
         class_weight="balanced", n_jobs=-1, random_state=42)
 
 
-def walk_forward(df: pd.DataFrame, target: str, use_xgb: bool):
+def walk_forward(df: pd.DataFrame, target: str, feats: list, use_xgb: bool):
     from sklearn.metrics import precision_score, recall_score, f1_score
-    feats = [c for c in FEATURE_COLS if c in df.columns]
     years = sorted(df["year"].unique())
     rows = []
-    last_model = None
     for i in range(1, len(years)):
         train_years = years[:i]
         test_year   = years[i]
@@ -267,11 +322,10 @@ def walk_forward(df: pd.DataFrame, target: str, use_xgb: bool):
             "recall":    float(recall_score(te[target], pred, zero_division=0)),
             "f1":        float(f1_score(te[target], pred, zero_division=0)),
         })
-        last_model = est
     # entrenar modelo final con TODO
     final = _make_estimator(use_xgb)
     final.fit(df[feats], df[target])
-    return final, rows, feats
+    return final, rows
 
 
 def plot_results(res_helada, res_sequia, path):
@@ -302,9 +356,14 @@ def main():
     ap.add_argument("--xgb", action="store_true",
                     help="Usar XGBoost en lugar de RandomForest")
     ap.add_argument("--no-kaggle", action="store_true",
-                    help="Usar CSV local willay_hist.csv en vez de Kaggle")
+                    help="Usar CSV local willay_hist.csv en vez de datasets Kaggle")
     ap.add_argument("--local-csv", default="willay_hist.csv")
-    args = ap.parse_args()
+    # parse_known_args en vez de parse_args: si el script se corre pegado en
+    # una celda de Jupyter/Colab (en vez de "!python archivo.py"), el kernel
+    # inyecta su propio argumento "-f kernel-xxx.json" y parse_args() truena
+    # con "unrecognized arguments". Con parse_known_args() simplemente lo
+    # ignoramos.
+    args, _unknown = ap.parse_known_args()
 
     # 1) Cargar datos
     if args.no_kaggle:
@@ -320,25 +379,30 @@ def main():
             print(f"⚠️  No pude cargar {KAGGLE_TEST}: {e}")
             df_test = None
 
-    # 2) Features + targets
-    feat_train = build_features(df_train)
-    print(f"📦 Train: {len(feat_train)} filas | "
-          f"helada+={feat_train['helada_t3'].sum()} | "
+    # 2) Features + targets (feats se calcula dinámicamente)
+    feat_train, feats = build_features(df_train)
+    print(f"📦 Train: {len(feat_train)} filas | features usadas: {feats}")
+    print(f"   helada+={feat_train['helada_t3'].sum()} | "
           f"sequia+={feat_train['sequia_t3'].sum()}")
+
+    if len(feat_train) == 0:
+        sys.exit("❌ El dataset de entrenamiento quedó vacío tras el feature "
+                  "engineering. Revisa que 'date', 't_min' y 'precip' tengan datos.")
 
     # 3) Walk-forward por año
     print("\n──── HELADA t+3 ────")
-    m_hel, res_hel, feats = walk_forward(feat_train, "helada_t3", args.xgb)
+    m_hel, res_hel = walk_forward(feat_train, "helada_t3", feats, args.xgb)
     for r in res_hel: print(r)
 
     print("\n──── SEQUIA t+3 ────")
-    m_seq, res_seq, _ = walk_forward(feat_train, "sequia_t3", args.xgb)
+    m_seq, res_seq = walk_forward(feat_train, "sequia_t3", feats, args.xgb)
     for r in res_seq: print(r)
 
     def _avg(rs, k): return float(np.mean([r[k] for r in rs])) if rs else 0.0
     summary = {
         "modelo": "xgboost" if args.xgb else "random_forest",
         "horizonte_dias": HORIZONTE_DIAS,
+        "features": feats,
         "helada": {
             "por_anio": res_hel,
             "precision_avg": _avg(res_hel, "precision"),
@@ -353,10 +417,15 @@ def main():
         },
     }
 
-    # 4) Validación final con dataset 2026 si está
+    # 4) Validación final con dataset 2026 si está disponible
     if df_test is not None:
-        feat_test = build_features(df_test)
-        if len(feat_test) > 0:
+        feat_test, _ = build_features(df_test)
+        # nos aseguramos de tener exactamente las columnas de entrenamiento
+        faltantes = [c for c in feats if c not in feat_test.columns]
+        if faltantes:
+            print(f"⚠️  El dataset 2026 no tiene estas columnas de feature: "
+                  f"{faltantes}. Se omite validación 2026.")
+        elif len(feat_test) > 0:
             from sklearn.metrics import precision_score, recall_score, f1_score
             ph = m_hel.predict(feat_test[feats])
             ps = m_seq.predict(feat_test[feats])
@@ -373,6 +442,9 @@ def main():
                     "f1":        float(f1_score(feat_test["sequia_t3"], ps, zero_division=0)),
                 },
             }
+        else:
+            print("⚠️  El dataset 2026 quedó vacío tras el feature engineering. "
+                  "Se omite validación 2026.")
 
     # 4b) 2ª capa · modelo del error (residual sensor−satélite)
     m_res, res_metrics = train_residual_model(feat_train)
@@ -382,7 +454,7 @@ def main():
     # 5) Guardar artefactos
     plot_results(res_hel, res_seq, PLOT_PATH)
     with open(REPORT_PATH, "w") as f:
-        json.dump(summary, f, indent=2)
+        json.dump(summary, f, indent=2, ensure_ascii=False)
     print(f"📝 Reporte → {REPORT_PATH}")
 
     import pickle
@@ -395,11 +467,20 @@ def main():
             "model_residual": m_res,
             "residual_features": RESIDUAL_FEATURES,
             "report": summary,
-            "trained_at": datetime.utcnow().isoformat(),
+            "trained_at": datetime.now(timezone.utc).isoformat(),
         }, f)
     print(f"✅ Modelo guardado → {MODEL_PATH}")
-    print(f"   Copiar a la Pi:  scp {MODEL_PATH} pi@<ip>:/home/pi/")
+    print(f"   Descárgalo desde el panel de salida (Output) del notebook,")
+    print(f"   o luego: scp {os.path.basename(MODEL_PATH)} pi@<ip>:/home/pi/")
 
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+# %% [code]
