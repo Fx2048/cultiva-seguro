@@ -84,7 +84,19 @@ void OnRxDone(uint8_t *payload,
 
         Serial.print("Estado: ");
         Serial.println(estado);
+        Serial.print("{");
+        Serial.print("\"temperatura\":");
+        Serial.print(temperatura,1);
 
+        Serial.print(",\"humedad\":");
+        Serial.print(humedadAire,1);
+
+        Serial.print(",\"humedad_suelo\":");
+        Serial.print(humedadSuelo);
+
+        Serial.print(",\"estado\":\"");
+        Serial.print(estado);
+        Serial.println("\"}");
         Serial.println("--------------------------------");
 
         //=============================
