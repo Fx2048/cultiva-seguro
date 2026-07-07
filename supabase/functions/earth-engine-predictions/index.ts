@@ -284,7 +284,8 @@ function normalCDF(x: number): number {
 
 function computePredictions(
   historicalData: any[], currentMonth: number, currentYear: number,
-  cropType = "generico", cropStage = ""
+  cropType = "generico", cropStage = "",
+  realMetrics: any = null
 ) {
   const monthlyStats: Record<number, { airTemps: number[], precips: number[], ndvis: number[] }> = {};
   for (let m = 1; m <= 12; m++) monthlyStats[m] = { airTemps: [], precips: [], ndvis: [] };
@@ -391,8 +392,14 @@ function computePredictions(
     else if (i < 6 && dataPoints >= 2) confidenceLevel = "medio";
     else confidenceLevel = "bajo";
 
-    const confidence = confidenceLevel === "alto" ? 0.85 + Math.random() * 0.1 :
-      confidenceLevel === "medio" ? 0.65 + Math.random() * 0.15 : 0.4 + Math.random() * 0.2;
+    // Confianza = F1 histórico real del modelo (walk-forward Python) si está disponible.
+    // Sin reporte real → derivada solo del horizonte + cantidad de datos (SIN aleatoriedad).
+    const f1Frost = realMetrics?.f1_helada ?? null;
+    const f1Drought = realMetrics?.f1_sequia ?? null;
+    const baseConfidence = confidenceLevel === "alto" ? 0.85
+      : confidenceLevel === "medio" ? 0.65 : 0.45;
+    const confidence = f1Frost != null ? f1Frost : baseConfidence;
+    const droughtConfidence = f1Drought != null ? f1Drought : Math.max(0, baseConfidence - 0.05);
 
     const frostRisk = frostProb > 60 ? "ALTO" : frostProb > 30 ? "MODERADO" : "BAJO";
     const droughtRisk = spiIndex < -1.5 ? "ALTO" : spiIndex < -0.5 ? "MODERADO" : "BAJO";
@@ -434,7 +441,7 @@ function computePredictions(
         probabilidad: Math.round(droughtProb * 10) / 10,
         precipitacion_esperada_mm: avgPrecip != null ? Math.round(avgPrecip * 10) / 10 : null,
         deficit_hidrico_mm: avgPrecip != null && globalAvgPrecip > avgPrecip ? Math.round((globalAvgPrecip - avgPrecip) * 10) / 10 : 0,
-        confianza: Math.round((confidence - 0.05) * 100) / 100,
+        confianza: Math.round(droughtConfidence * 100) / 100,
         nivel_riesgo: droughtRisk,
         nivel_confianza: confidenceLevel,
         factores: droughtFactors,
@@ -471,12 +478,13 @@ function computePredictions(
       umbrales_cultivo: CROP_THRESHOLDS,
       data_sources: ["MODIS MOD11A2 (LST)", "MODIS MOD13A2 (NDVI)", "CHIRPS (Precipitación)"],
     },
-    model_metrics: {
-      heladas_precision: 78.3,
-      heladas_recall: 90.0,
-      sequia_precision: 83.3,
-      sequia_recall: 88.2,
-      r_squared: 0.82,
+    model_metrics: realMetrics ?? {
+      heladas_precision: null,
+      heladas_recall: null,
+      sequia_precision: null,
+      sequia_recall: null,
+      r_squared: null,
+      nota: "Métricas del modelo entrenado no disponibles aún (report.json no encontrado)",
     },
     crop_config: {
       crop_type: cropType,
