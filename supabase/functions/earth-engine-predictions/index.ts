@@ -43,6 +43,40 @@ async function getAccessToken(credentials: any): Promise<string> {
 
 const GEE_COMPUTE_URL = `https://earthengine.googleapis.com/v1/projects/earthengine-legacy/value:compute`;
 
+// ── Lee report.json real generado por el pipeline Python (walk-forward) ──
+async function getRealModelMetrics(): Promise<any | null> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !key) return null;
+    const res = await fetch(`${url}/storage/v1/object/model-artifacts/report.json`, {
+      headers: { Authorization: `Bearer ${key}`, apikey: key },
+    });
+    if (!res.ok) {
+      console.warn(`report.json fetch ${res.status}`);
+      return null;
+    }
+    const report = await res.json();
+    const h = report.helada ?? {};
+    const s = report.sequia ?? {};
+    return {
+      heladas_precision: h.precision_avg != null ? Math.round(h.precision_avg * 1000) / 10 : null,
+      heladas_recall: h.recall_avg != null ? Math.round(h.recall_avg * 1000) / 10 : null,
+      sequia_precision: s.precision_avg != null ? Math.round(s.precision_avg * 1000) / 10 : null,
+      sequia_recall: s.recall_avg != null ? Math.round(s.recall_avg * 1000) / 10 : null,
+      f1_helada: h.f1_avg ?? null,
+      f1_sequia: s.f1_avg ?? null,
+      modelo: report.modelo ?? null,
+      horizonte_dias: report.horizonte_dias ?? null,
+      por_anio: { helada: h.por_anio ?? [], sequia: s.por_anio ?? [] },
+      fuente: "walk-forward Python (report.json)",
+    };
+  } catch (e) {
+    console.error("getRealModelMetrics error:", e);
+    return null;
+  }
+}
+
 function makeFilteredCollection(collectionId: string, startDate: string, endDate: string) {
   return {
     functionInvocationValue: {
@@ -250,7 +284,8 @@ function normalCDF(x: number): number {
 
 function computePredictions(
   historicalData: any[], currentMonth: number, currentYear: number,
-  cropType = "generico", cropStage = ""
+  cropType = "generico", cropStage = "",
+  realMetrics: any = null
 ) {
   const monthlyStats: Record<number, { airTemps: number[], precips: number[], ndvis: number[] }> = {};
   for (let m = 1; m <= 12; m++) monthlyStats[m] = { airTemps: [], precips: [], ndvis: [] };
@@ -357,8 +392,14 @@ function computePredictions(
     else if (i < 6 && dataPoints >= 2) confidenceLevel = "medio";
     else confidenceLevel = "bajo";
 
-    const confidence = confidenceLevel === "alto" ? 0.85 + Math.random() * 0.1 :
-      confidenceLevel === "medio" ? 0.65 + Math.random() * 0.15 : 0.4 + Math.random() * 0.2;
+    // Confianza = F1 histórico real del modelo (walk-forward Python) si está disponible.
+    // Sin reporte real → derivada solo del horizonte + cantidad de datos (SIN aleatoriedad).
+    const f1Frost = realMetrics?.f1_helada ?? null;
+    const f1Drought = realMetrics?.f1_sequia ?? null;
+    const baseConfidence = confidenceLevel === "alto" ? 0.85
+      : confidenceLevel === "medio" ? 0.65 : 0.45;
+    const confidence = f1Frost != null ? f1Frost : baseConfidence;
+    const droughtConfidence = f1Drought != null ? f1Drought : Math.max(0, baseConfidence - 0.05);
 
     const frostRisk = frostProb > 60 ? "ALTO" : frostProb > 30 ? "MODERADO" : "BAJO";
     const droughtRisk = spiIndex < -1.5 ? "ALTO" : spiIndex < -0.5 ? "MODERADO" : "BAJO";
@@ -400,7 +441,7 @@ function computePredictions(
         probabilidad: Math.round(droughtProb * 10) / 10,
         precipitacion_esperada_mm: avgPrecip != null ? Math.round(avgPrecip * 10) / 10 : null,
         deficit_hidrico_mm: avgPrecip != null && globalAvgPrecip > avgPrecip ? Math.round((globalAvgPrecip - avgPrecip) * 10) / 10 : 0,
-        confianza: Math.round((confidence - 0.05) * 100) / 100,
+        confianza: Math.round(droughtConfidence * 100) / 100,
         nivel_riesgo: droughtRisk,
         nivel_confianza: confidenceLevel,
         factores: droughtFactors,
@@ -437,12 +478,13 @@ function computePredictions(
       umbrales_cultivo: CROP_THRESHOLDS,
       data_sources: ["MODIS MOD11A2 (LST)", "MODIS MOD13A2 (NDVI)", "CHIRPS (Precipitación)"],
     },
-    model_metrics: {
-      heladas_precision: 78.3,
-      heladas_recall: 90.0,
-      sequia_precision: 83.3,
-      sequia_recall: 88.2,
-      r_squared: 0.82,
+    model_metrics: realMetrics ?? {
+      heladas_precision: null,
+      heladas_recall: null,
+      sequia_precision: null,
+      sequia_recall: null,
+      r_squared: null,
+      nota: "Métricas del modelo entrenado no disponibles aún (report.json no encontrado)",
     },
     crop_config: {
       crop_type: cropType,
@@ -600,7 +642,8 @@ serve(async (req) => {
       });
     }
 
-    const result = computePredictions(historicalData, currentMonth, currentYear, cropType, crop_stage);
+    const realMetrics = await getRealModelMetrics();
+    const result = computePredictions(historicalData, currentMonth, currentYear, cropType, crop_stage, realMetrics);
     console.log(`🧠 Predicción v3 generada: ${result.predictions.length} meses, cultivo=${cropType}`);
 
     return new Response(JSON.stringify({

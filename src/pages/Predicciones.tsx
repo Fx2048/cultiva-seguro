@@ -83,13 +83,18 @@ type PredictionResult = {
     data_sources?: string[];
   };
   model_metrics: {
-    heladas_precision?: number;
-    heladas_recall?: number;
-    sequia_precision?: number;
-    sequia_recall?: number;
+    heladas_precision?: number | null;
+    heladas_recall?: number | null;
+    sequia_precision?: number | null;
+    sequia_recall?: number | null;
     heladas_rmse?: number;
     sequia_rmse?: number;
-    r_squared: number;
+    r_squared?: number | null;
+    f1_helada?: number | null;
+    f1_sequia?: number | null;
+    modelo?: string | null;
+    fuente?: string;
+    nota?: string;
   };
   crop_config?: {
     crop_type: string;
@@ -327,6 +332,35 @@ const Predicciones = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Métricas reales del modelo (walk-forward Python) */}
+            <div className="rounded-2xl border-2 border-border bg-card p-4">
+              <h3 className="text-base font-extrabold text-foreground mb-2">
+                🧪 Validación del modelo
+              </h3>
+              {data.model_metrics?.heladas_precision == null ? (
+                <p className="text-xs text-warning font-bold text-center">
+                  ⚠️ Métricas de validación del modelo aún no disponibles
+                </p>
+              ) : (
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p className="font-bold text-foreground">
+                    Modelo: {data.model_metrics.modelo ?? "random_forest"} · Walk-forward
+                  </p>
+                  <p>
+                    ❄️ Heladas — Precisión: <b>{data.model_metrics.heladas_precision}%</b> · Recall: <b>{data.model_metrics.heladas_recall}%</b>
+                    {data.model_metrics.f1_helada != null && <> · F1: <b>{(data.model_metrics.f1_helada * 100).toFixed(1)}%</b></>}
+                  </p>
+                  <p>
+                    🌵 Sequía — Precisión: <b>{data.model_metrics.sequia_precision}%</b> · Recall: <b>{data.model_metrics.sequia_recall}%</b>
+                    {data.model_metrics.f1_sequia != null && <> · F1: <b>{(data.model_metrics.f1_sequia * 100).toFixed(1)}%</b></>}
+                  </p>
+                  {data.model_metrics.fuente && (
+                    <p className="opacity-70">Fuente: {data.model_metrics.fuente}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Timeline chart */}
